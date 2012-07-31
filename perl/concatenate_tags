@@ -1,0 +1,60 @@
+#!/usr/bin/perl
+use strict;
+
+my $usage = "This program takes two files containing tag points from a 
+single volume and will create a third file where the tags 
+from file 1 and 2 are concatenated. This output file can 
+be used with tagtoxfm or tagtoxfm_bspline to create a transformation.
+
+$0 tags1.tag tags2.tag output_concatenated.tag\n\n";
+
+my $tag1 = shift or die $usage;
+my $tag2 = shift or die $usage;
+my $concat = shift or die $usage;
+
+# write to the output concatenated file
+open(CONCAT, "> $concat");
+# Initialize the output file:
+print CONCAT "MNI Tag Point File\n";
+print CONCAT "Volumes = 2;\n";
+print CONCAT "% File created automatically by concatenate_tags.pl. Input tag files:\n";
+print CONCAT "% $tag1\n";
+print CONCAT "% $tag2\n\n";
+print CONCAT "Points = ";
+
+my $tag1_start_tags = get_start_tags($tag1);
+my $tag2_start_tags = get_start_tags($tag2);
+# read from the first tag file, as well as from the second
+open(TAG1, "< $tag1");
+open(TAG2, "< $tag2");
+my @lines1 = <TAG1>;
+my @lines2 = <TAG2>;
+for(my $i = $tag1_start_tags, my $j = $tag2_start_tags;
+		$i <= $#lines1 and $j <= $#lines2;
+		$i++, $j++) {
+	my @atoms1 = split " ", $lines1[$i];
+	my @atoms2 = split " ", $lines2[$j];
+	print CONCAT "\n $atoms1[0] $atoms1[1] $atoms1[2] $atoms2[0] $atoms2[1] $atoms2[2] \"\"";
+}
+
+print CONCAT ";\n";
+
+close(TAG1);
+close(TAG2);
+close(CONCAT);
+exit;
+
+
+
+sub get_start_tags {
+	my $tagfile = shift;
+	
+	open(TAGFILE, "< $tagfile");
+	my @lines = <TAGFILE>;
+	for(my $i = 0; $i <= $#lines; $i++) {
+		if($lines[$i] =~ m/Points/) {
+			close(TAGFILE);
+			return $i + 1;
+		}
+	}
+}

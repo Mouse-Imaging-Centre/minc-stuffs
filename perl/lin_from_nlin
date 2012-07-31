@@ -1,0 +1,55 @@
+#!/usr/bin/perl
+
+# computes the best linear fit from a non-linear transform.
+
+use strict;
+use warnings;
+
+use MNI::Startup;
+use Getopt::Tabular;
+use MNI::Spawn;
+use MNI::FileUtilities qw(test_file check_output_dirs);
+
+
+my $version = 1.0;
+my $usage = "$ProgramName [options] input_volume.mnc input_nonlin.xfm output_lin.xfm\n";
+
+# defaults
+my $transformType = "-lsq12";
+my $mask = undef;
+
+# handle arguments
+my @left_over_args;
+my @arg_table = 
+    ( @DefaultArgs,
+      ["Linear transform type", "section"],
+      ["-lsq12", "const", "-lsq12", \$transformType,
+       "12 parameter transform."],
+      ["-lsq9", "const", "-lsq9", \$transformType,
+       "9 parameter transform."],
+      ["-lsq6", "const", "-lsq6", \$transformType,
+       "6 parameter transform."],
+      ["Masking options", "section"],
+      ["-mask", "string", 1, \$mask,
+       "Compute transform only inside specified mask"],
+    );
+
+GetOptions(\@arg_table, \@ARGV, \@left_over_args) or die "\n";
+
+RegisterPrograms(["xfm2tag", "tagtoxfm"]);
+
+my $input_volume = shift @left_over_args or die $usage;
+my $input_nonlin = shift @left_over_args or die $usage;
+my $output_lin = shift @left_over_args or die $usage;
+
+check_output_dirs($TmpDir);
+
+AddDefaultArgs("xfm2tag", ["-clobber"]) if ($Clobber);
+AddDefaultArgs("tagtoxfm", ["-clobber"]) if ($Clobber);
+AddDefaultArgs("xfm2tag", ["-mask", $mask]) if ($mask);
+
+my $tags = "${TmpDir}/tags.tag";
+Spawn(["xfm2tag", $input_volume, $input_nonlin, $tags]);
+Spawn(["tagtoxfm", $transformType, $tags, $output_lin]);
+
+

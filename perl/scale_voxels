@@ -1,0 +1,70 @@
+#!/usr/bin/env perl
+
+# takes two files: a linear transform and a volume to be scaled (such
+# as jacobians). Then multiplies (or adds) the scale factor of the
+# transform to this volume.
+
+use warnings;
+use strict;
+use MNI::Startup;
+use MNI::Spawn;
+use MNI::FileUtilities qw(check_output_dirs);
+use Getopt::Tabular;
+
+
+my $usage = "$ProgramName [options] transform.xfm volume.mnc output.mnc\n";
+
+my $useLog = 0;
+my $invert = 0;
+my @leftOverArgs;
+
+my @argTbl = 
+  ( @DefaultArgs,
+    ["-log", "boolean", 0, \$useLog,
+     "Add log of scale factor to volume."],
+    ["-invert", "boolean", 0, \$invert,
+     "Invert transform before computing scale."],
+  );
+
+GetOptions(\@argTbl, \@ARGV, \@leftOverArgs) or die "\n";
+
+my $transform = shift @leftOverArgs or die $usage;
+my $volume = shift @leftOverArgs or die $usage;
+my $output = shift @leftOverArgs or die $usage;
+
+if (-e $output && !$Clobber) {
+  die "$output exists and -clobber not specified";
+}
+
+check_output_dirs($TmpDir);
+RegisterPrograms(["xfminvert", "mincmath", "xfm2param"]);
+
+if ($invert) {
+  my $tmpTransform = "${TmpDir}/inverted.xfm";
+  Spawn(["xfminvert", $transform, $tmpTransform]);
+  $transform = $tmpTransform;
+}
+
+my $transformOutput;
+Spawn(["xfm2param", $transform], stdout=>\$transformOutput);
+
+my @trans = split /\n/, $transformOutput;
+my @scales = split /\s+/, $trans[4];
+my $totalScale = $scales[1] * $scales[2] * $scales[3];
+my $logScale = log($totalScale);
+
+my @mathOpts;
+push @mathOpts, "-clobber" if $Clobber;
+if ($useLog) {
+  push @mathOpts, ("-add", "-const", $logScale);
+  print "Adding $logScale to $volume\n";
+}
+else {
+  push @mathOpts, ("-mult", "-const", $totalScale);
+  print "Multiplying $volume with $totalScale\n";
+}
+
+Spawn(["mincmath", @mathOpts, $volume, $output]);
+
+
+

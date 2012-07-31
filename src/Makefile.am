@@ -1,0 +1,5 @@
+bin_PROGRAMS = minc_displacement label_volumes_from_jacobians xfm2tag
+
+minc_displacement_SOURCES = minc_displacement.c
+label_volumes_from_jacobians_SOURCES = label_volumes_from_jacobians.c
+xfm2tag_SOURCES = xfm2tag.c

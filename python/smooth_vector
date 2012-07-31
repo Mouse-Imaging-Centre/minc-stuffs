@@ -1,0 +1,117 @@
+#!/usr/bin/env python
+#
+# smooth_vector.py
+#
+# A script to apply spline approximation to smooth each component of a
+# vector image.
+#
+# Created Aug 26, 2004
+
+from sys import argv
+import string
+import os, tempfile
+import exceptions
+from optparse import OptionParser, Option, OptionValueError
+
+program_name = 'smooth_vector.py'
+
+#----------------------------------------------------------------------------
+# define program specific exception
+class FatalError(exceptions.Exception):
+    def __init__(self,args=None):
+        self.msg = args
+
+
+#----------------------------------------------------------------------
+
+def process_volume(input, output, options):
+
+    n = get_vector_length(input)
+
+    working = tempfile.mktemp(".mnc")
+    if options.smoothing == 'filter':
+        smooth_base = [tempfile.mktemp() for i in range(n)]
+        smoothed = [i + "_blur.mnc" for i in smooth_base]
+    else:
+        smoothed = [tempfile.mktemp(".mnc") for i in range(n)]
+
+    for i in range(n):
+        os.system("mincreshape -clobber -dimrange vector_dimension=%i %s %s" % \
+               (i, input, working))
+
+        if options.smoothing == 'spline':
+            if options.mask:
+                mask_option = '-mask %s' % options.mask
+            else:
+                mask_option = ''
+        
+                os.system("spline_smooth -distance %f -b_spline %s %s %s" %\
+                          (options.distance, mask_option, working, smoothed[i]))
+        else:
+            os.system("mincblur -fwhm %f %s %s" % \
+                      (options.fwhm, working, smooth_base[i]))
+
+    os.system("mincconcat -clobber -concat_dimension vector_dimension %s %s" % \
+           (string.join(smoothed), output))
+    os.system("rm -f %s %s" % (string.join(smoothed), working))
+
+
+
+def get_vector_length(input):
+
+    out = os.popen('mincinfo -dimlength vector_dimension %s' % input)
+    length = int(out.readline())
+    out.close()
+    return length
+
+#----------------------------------------------------------------------
+# top level program
+
+if __name__ == '__main__':
+
+    usage = """%s [options] input.mnc output.mnc
+   or  %s --help
+   
+%s is a script for smoothing each component of a vector image
+by spline approximation
+""" % ((program_name, )*3)
+
+    parser = OptionParser(usage)
+    parser.add_option("--clobber", action="store_true", dest="clobber",
+                       default=0, help="overwrite output file")
+    parser.add_option("--mask", type="string", dest="mask", metavar="mask.mnc",
+                      help="smooth values with specified mask region")
+    parser.add_option("--distance", type="float", dest="distance",
+                      metavar="distance", help="distance between knot points",
+                      default=1.0)
+    parser.add_option("--fwhm", type="float", dest="fwhm",
+                      metavar="fwhm", help="full width at half maximum of gaussian blurring kernel")
+    parser.add_option("--spline", action="store_const", const="spline",
+                      dest="smoothing", default="spline",
+                      help="Use spline approximation to smooth the data (default)")
+    parser.add_option("--filter", action="store_const", const="filter",
+                      dest="smoothing", 
+                      help="Use a Gaussian filter to smooth the data")
+    
+    
+    options, args = parser.parse_args()
+
+    if len(args) == 2:
+        input, output = args
+    else:
+        print usage
+        raise SystemExit
+
+    try:
+        if not options.clobber and os.path.exists(output):
+            raise FatalError, \
+               "The --clobber option is needed to overwrite an existing file."
+        if options.smoothing == 'filter' and options.mask:
+            raise FatalError, \
+                  "The combination of --mask and --filter is not yet supported."
+    except FatalError, e:
+        print 'Error(%s):' % program_name, e.msg
+        raise SystemExit
+
+
+    process_volume(input, output, options)

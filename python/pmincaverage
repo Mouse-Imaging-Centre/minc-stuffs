@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+
+from pyminc.volumes.factory import *
+from numpy import *
+#from scipy.stats import *
+from optparse import OptionParser
+import multiprocessing as mp
+
+def getslice(volhandle, slice, q,nslices):
+    """collects hyperslabs for a particular volume handle. Designed to
+    be used with the multiprocessing module"""
+    if volhandles[0].ndims == 3: #3D file
+        t = volhandles[volhandle].getHyperslab((slice,0,0),
+                                               (nslices,volhandles[0].sizes[1],
+                                                volhandles[0].sizes[2]))
+        t.shape = (nslices,volhandles[0].sizes[1], volhandles[0].sizes[2])
+    elif volhandles[0].ndims == 4: #4D vector file
+        t = volhandles[volhandle].getHyperslab((0, slice,0,0),
+                                               (volhandles[0].sizes[0],
+                                                nslices,
+                                                volhandles[0].sizes[2],
+                                                volhandles[0].sizes[3]))
+        t.shape = (volhandles[0].sizes[0],
+                   nslices,
+                   volhandles[0].sizes[2],
+                   volhandles[0].sizes[3])
+    q.put((volhandle, t))
+
+def getfile(q, filename):
+    q.put(volumeFromFile(filename, dtype='double'))
+    
+if __name__ == "__main__":
+
+    usage = "Usage text"
+    description = "Description text"
+    
+    parser = OptionParser(usage=usage, description=description)
+    parser.add_option("--clobber", dest="clobber",
+                      help="clobber output file",
+                      type="string")
+
+    (options, args) = parser.parse_args()
+
+    if len(args) < 4:
+        parser.error("Incorrect number of arguments")
+
+    outfilename = args[-1]
+    # clobber check should go here
+    
+    volhandles = []
+
+    # open all the file handles
+    nfiles = len(args)-1
+    for i in range( nfiles ):
+        print("VOLHANDLES: %d" % i)
+        volhandles.append(volumeFromFile(args[i], dtype='double'))
+
+    outfile = volumeLikeFile(args[0], outfilename, volumeType='short')
+
+    # create the slice array
+    nslices = 10
+    if volhandles[0].ndims == 3:
+        sliceIndex = 0
+        sliceArray = zeros( (nfiles,nslices,
+                             volhandles[0].sizes[1],
+                             volhandles[0].sizes[2]))
+    elif volhandles[0].ndims == 4:
+        sliceIndex = 1
+        sliceArray = zeros( (nfiles,
+                             volhandles[0].sizes[0],
+                             nslices,
+                             volhandles[0].sizes[2],
+                             volhandles[0].sizes[3]))
+
+    # loop over all slices
+    p = mp.Pool(processes=2)
+    manager = mp.Manager()
+    for i in range(0,volhandles[0].sizes[sliceIndex],nslices):
+        # last set might have less than n-slices - adjust.
+        if (i + nslices) > volhandles[0].sizes[sliceIndex]:
+            nslices = volhandles[0].sizes[sliceIndex] - i
+            if volhandles[0].ndims == 3:
+                sliceArray = zeros( (nfiles,nslices,
+                                     volhandles[0].sizes[1],
+                                     volhandles[0].sizes[2]))
+            elif volhandles[0].ndims == 4:
+                sliceArray = zeros( (nfiles,
+                                     volhandles[0].sizes[0],
+                                     nslices,
+                                     volhandles[0].sizes[2],
+                                     volhandles[0].sizes[3]))
+                
+        print "SLICE: %i" % i
+        # use parallel processing to get the slice data
+        q = manager.Queue()
+        for j in range(nfiles):
+            t = p.apply_async(getslice, (j,i,q,nslices))
+
+        t.get() # seems to be necessary as a sort of waitpid call ...
+
+        # retrieve the data from the queue
+        while not q.empty():
+            ix, t = q.get()
+            if volhandles[0].ndims == 3:
+                sliceArray[ix,::,::,::] = t
+            elif volhandles[0].ndims == 4:
+                sliceArray[ix,::,::,::,::] = t
+
+        # get each slice and create the average
+        for k in range(nslices):
+            if volhandles[0].ndims == 3:
+                sl = sliceArray[::,k,::,::]
+                m = average(sl, axis=0)
+                outfile.data[i+k::] = m
+            elif volhandles[0].ndims == 4:
+                for vi in range(volhandles[0].sizes[0]):
+                    sl = sliceArray[::,vi,k,::,::]
+                    m = average(sl, axis=0)
+                    outfile.data[vi,i+k,::,::] = m
+
+    # and Bob's your uncle.
+    outfile.writeFile()
+    outfile.closeVolume()
+
+                                                          
+    

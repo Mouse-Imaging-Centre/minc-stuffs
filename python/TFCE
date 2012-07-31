@@ -1,0 +1,108 @@
+#!/usr/bin/env python
+
+from optparse import OptionParser
+from pyminc.volumes.factory import *
+from scipy import ndimage, weave
+from numpy import *
+import operator
+
+
+def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0):
+    #infile = "1.mnc"
+    #out = "1-tfce.mnc"
+
+    #invol = volumeFromFile(infile)
+    #outvol = volumeFromInstance(invol, outfile, volumeType="ushort")
+
+    #dh = 0.1
+    #E = 0.5
+    #H = 2.0
+    outvol.data #make sure data has been loaded
+    
+    # step through data with dh increments
+    for h in arange(0, invol.data.max(), dh):
+        # threshold the data with current height
+        thresh = array( invol.data > h, "uint8")
+        
+        # connected components labelling
+        l = ndimage.label(thresh)
+        print "L:", l[1]
+        # compute the size of each label
+        sizes = array(ndimage.sum(thresh, l[0], range(l[1]+1)))
+        # modulate label size by voxel volume
+        sizes = sizes * reduce(operator.mul, invol.separations)
+        print "sizes", sizes.shape
+
+        # compute TFCE
+        if l[1] > 0:
+            print "inside", h, l[1]
+            code = """
+            for (int x=0; x < nx; ++x) {
+               for (int y=0; y < ny; ++y) {
+                  for (int z=0; z < nz; ++z) {
+                     if (labeled(x,y,z) > 0) {
+                        int e = labeled(x,y,z);
+                        //std::cout << data(x,y,z) << " " << h << " " << sizes(e) << std::endl;
+                        data(x,y,z) = data(x,y,z) + (pow(h, H) * pow(sizes(e), E) * dh);
+                        //data(x,y,z) = n;
+            }}}}
+            """
+            data = outvol.data
+            nx,ny,nz = data.shape
+            labeled = l[0]
+            
+            weave.inline(code, ['data', 'nx', 'ny', 'nz', 'labeled', 'h',
+                                'H', 'E', 'sizes', 'dh'],
+                         type_converters=weave.converters.blitz,
+                         compiler='gcc')
+               
+        print h
+    #outvol.writeFile()
+    #outvol.closeVolume()
+
+if __name__ == "__main__":
+    
+    usage = "usage: %prog [options] input.mnc output.mnc"
+    description = """
+Applies the texture free cluster enhancement (TFCE) to a statistics image. See:
+Smith and Nichols. Threshold-free cluster enhancement: addressing problems of smoothing, threshold dependence and localisation in cluster inference. NeuroImage (2009) vol. 44 (1) pp. 83-98
+    """
+    parser = OptionParser(usage=usage, description=description)
+    
+    parser.add_option("-d", "--dh", dest="dh",
+                      help="Increments over which to compute TFCE [default: %default]",
+                      type="float", default=0.1)
+    parser.add_option("-E", dest="E",
+                      help="Power by which to raise the extent [default: %default]",
+                      type="float", default=0.5)
+    parser.add_option("-H", dest="H",
+                      help="Power by which to raise the height [default: %default]",
+                      type="float", default=2.0)
+    parser.add_option("--pos-and-neg", dest="pos_and_neg",
+                      help="Use both positive and negative data in input [default]",
+                      action="store_const", const="both", default="both")
+    parser.add_option("--pos-only", dest="pos_and_neg",
+                      help="Use only positive data in input",
+                      action="store_const", const="pos")
+    parser.add_option("--neg-only", dest="pos_and_neg",
+                      help="Use only negative data in input",
+                      action="store_const", const="neg")
+    
+    (options, args) = parser.parse_args()
+    
+    if len(args) !=2:
+        parser.error("Incorrect number of arguments")
+    
+        
+    invol = volumeFromFile(args[0])
+    outvol = volumeFromInstance(invol, args[1], dtype='ushort')
+    
+    if options.pos_and_neg == "both" or options.pos_and_neg == "pos":
+        tfce(invol, outvol, options.dh, options.E, options.H)
+    if options.pos_and_neg == "both" or options.pos_and_neg == "neg":
+        invol.data = invol.data * -1
+        tfce(invol, outvol, options.dh, options.E, options.H)
+    
+    outvol.writeFile()
+    outvol.closeVolume()
+        

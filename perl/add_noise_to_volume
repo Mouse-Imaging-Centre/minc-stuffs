@@ -1,0 +1,45 @@
+#!/usr/bin/env perl
+
+# uses R and its rnorm function to add noise to a MINC volume
+
+use Getopt::Tabular;
+use MNI::Spawn;
+use MNI::Startup;
+use MNI::FileUtilities qw(check_output_dirs);
+
+my $input="test.mnc";
+my $output="test-out.mnc";
+
+my $percentage=0.25;
+
+my $usage = "$0 [options] input.mnc output.mnc\n";
+
+my @leftOverArgs;
+my @argTbl = 
+    (@DefaultArgs,
+     ["Statistics Options", "section"],
+     ["-noise", float, 1, \$percentage,
+      "Standard deviation of the normal distribution will be the mean at each voxel multiplied by the noise level"]);
+
+GetOptions(\@argTbl, \@ARGV, \@leftOverArgs) or die "\n";
+my $input = shift @leftOverArgs or die $usage;
+my $output = shift @leftOverArgs or die $usage;
+
+if (-e $output and !$Clobber) {
+    die "$output exists and -clobber not specified\n";
+}
+
+my $script = <<SCRIPT;
+library(RMINC)
+volume <- mincGetVolume(\"$input\")
+noise = rnorm(n=length(volume), mean=volume, sd=volume*$percentage)
+noise[is.na(noise)] <- volume[is.na(noise)]
+mincWriteVolume(noise, \"$output\", \"$input\")
+quit(save=\"no\")
+
+SCRIPT
+
+open R, "|R --vanilla --no-readline" or die "Error opening pipe to R: $!\n";
+print R $script;
+close R;
+

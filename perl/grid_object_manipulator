@@ -1,0 +1,849 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use MNI::Startup;
+use MNI::Spawn;
+use File::Basename;
+use MNI::PathUtilities qw(split_path);
+
+my $usage = "\nThis program is designed to visualize the deformation grids of the non linear generations of a registration process. ";
+$usage .= "In order to do this, an object file containing lines to form a grid can be created, and if wanted, a neuroanatomical image ";
+$usage .= "of the input minc file and the created grid can be made (using ray_trace). In addition, an object file containing a grid can ";
+$usage .= "be resampled given a transform and again images can be made.\n";
+$usage .= "\n--------------------------------  Usage  ---------------------------------\n";
+$usage .= "-mincfile        mincfile.mnc\n";
+$usage .= "-transform       transformation.xfm\n";
+$usage .= "-raytrace        output.rgb                       [default = raytrace.rgb]\n";
+$usage .= "-gridsize        size                      [default = 16 * file_step_size]\n";
+$usage .= "-axis            axis                                        [default = z]\n";
+$usage .= "-slice           slice_number (in voxel coor.)             [default = 100]\n";
+$usage .= "-imagemin        imagemin                       [default = file image min]\n";
+$usage .= "-imagemax        imagemax                    [default = 3/4 of file range]\n";
+$usage .= "-supersampling   factor                           [default = 3, range 1-3]\n";
+$usage .= "-gridopacity     transparency                              [default = 0.7]\n";
+$usage .= "-basicgrid       gridname.obj                    [default = base-grid.obj]\n";
+$usage .= "-resampledgrid   gridname.obj               [default = resampled-grid.obj]\n";
+$usage .= "-rgbimagesize    width,height                        [default = 3000,3000]\n";
+$usage .= "-mask            mincfile.mnc (if the imagemin and imagemax are           \n";
+$usage .= "                 not given the mask is used to better estimate            \n";
+$usage .= "                 these values from the input minc file.)                  \n";
+$usage .= "-noraytrace      (do not perform the raytracing, by default done)\n";
+$usage .= "-saveobjfiles    (save the object files, by default not done)\n\n";
+$usage .= "Additional slices for raytracing (2 possible): \n(for color chose from hot, spectral, red, green, blue, hotred and hotblue)\n\n";
+$usage .= "-additional1     mincfile.mnc\n";
+$usage .= "-colour1         colour (see available list above)      [default = hotred]\n";
+$usage .= "-range1          min,max (comma seperated)\n";
+$usage .= "-transparency1   transparency (between 0 and 1)            [default = 0.3]\n";
+$usage .= "-additional2     mincfile.mnc\n";
+$usage .= "-colour2         colour (see available list above)     [default = hotblue]\n";
+$usage .= "-range2          min,max (comma seperated)\n";
+$usage .= "-transparency2   transparency (between 0 and 1)            [default = 0.3]\n";
+$usage .= "--------------------------------------------------------------------------\n\n";
+$usage .= "Example usage for a base grid:\n$0 -mincfile mincfile.mnc\n\n";
+$usage .= "Example usage for a resampled grid:\n$0 -mincfile mincfile.mnc -transform transformation.xfm\n\n";
+
+if($#ARGV == -1)
+{
+	die $usage;
+}
+
+if($ARGV[0] =~ m/help/)
+{
+	die $usage;
+}
+
+my $gridoriginal = "base-grid.obj";
+my $gridresampled = "resampled-grid.obj";
+my $gridsize = undef;
+my $mincinput = undef;
+my $axis = "z";
+my $slice = 100;
+my $transform = undef;
+my $rgboutput = "raytrace.rgb";
+my $raytrace = 1;
+my $saveobjfiles = 0;
+my $supersampling = 3;
+my $gridopacity = 0.7;
+
+my $rgbimagewidth = 3000;
+my $rgbimageheight = 3000;
+
+my $globimgmin = undef;
+my $globimgmax = undef;
+
+my $additional1 = undef;
+my $colour1 = "hotred";
+my $range1 = undef;
+my $transparency1 = 0.3;
+my $additional2 = undef;
+my $colour2 = "hotblue";
+my $range2 = undef;
+my $transparency2 = 0.3;
+
+my $mask = undef;
+
+RegisterPrograms(["mincinfo", "mincstats"]);
+
+#parse command line parameters
+while(@ARGV)
+{
+	my $ARGV = shift @ARGV;
+	if($ARGV =~ m/gridsize/)
+	{
+		$gridsize = shift;
+		if(!defined($gridsize))
+		{ 
+			die "\nError: specify a gridsize for the gridsize option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/noraytrace/)
+	{
+		$raytrace = 0;
+	}
+	elsif($ARGV =~ m/saveobjfiles/)
+	{
+		$saveobjfiles = 1;
+	}
+	elsif($ARGV =~ m/basicgrid/)
+	{
+		$gridoriginal = shift; 
+		if(!defined($gridoriginal))
+		{ 
+			die "\nError: specify an object file name for the basicgrid option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/resampledgrid/)
+	{
+		$gridresampled = shift; 
+		if(!defined($gridresampled))
+		{ 
+			die "\nError: specify an object file name for the resampledgrid option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/mincfile/)
+	{
+		$mincinput = shift; 
+		if(!defined($mincinput))
+		{ 
+			die "\nError: specify an input for the mincfile option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/mask/)
+	{
+		$mask = shift; 
+		if(!defined($mask))
+		{ 
+			die "\nError: specify an input for the mask option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/axis/)
+	{
+		$axis = shift; 
+		if(!defined($axis))
+		{ 
+			die "\nError: specify an axis for the axis option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/slice/)
+	{
+		$slice = shift; 
+		if(!defined($slice))
+		{ 
+			die "\nError: specify a slice for the slice option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/help/)
+	{
+		die $usage;
+	}
+	elsif($ARGV =~ m/transform/)
+	{
+		$transform = shift;
+		if(!defined($transform))
+		{
+			die "\nError: specify a transform for the transform option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/raytrace/)
+	{
+		$rgboutput = shift;
+		if(!defined($rgboutput))
+		{
+			die "\nError: specify an rgb output for the raytrace option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/additional1/)
+	{
+		$additional1 = shift;
+		if(!defined($additional1))
+		{ 
+			die "\nError: specify a mincfile for the additional1 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/colour1/)
+	{
+		$colour1 = shift;
+		if(!defined($colour1))
+		{
+			die "\nError: specify a colour for the colour1 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/range1/)
+	{
+		$range1 = shift;
+		if(!defined($range1))
+		{
+			die "\nError: specify a range for the range1 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/transparency1/)
+	{
+		$transparency1 = shift;
+		if(!defined($transparency1))
+		{
+			die "\nError: specify a transparency output for the transparency1 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/additional2/)
+	{
+		$additional2 = shift;
+		if(!defined($additional2))
+		{
+			die "\nError: specify a mincfile for the additional2 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/colour2/)
+	{
+		$colour2 = shift;
+		if(!defined($colour2))
+		{
+			die "\nError: specify a colour for the colour2 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/range2/)
+	{
+		$range2 = shift;
+		if(!defined($range2))
+		{ 
+			die "\nError: specify a range for the range2 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/transparency2/)
+	{
+		$transparency2 = shift;
+		if(!defined($transparency2))
+		{ 
+			die "\nError: specify a transparency output for the transparency2 option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/imagemin/)
+	{
+		$globimgmin = shift; 
+		if(!defined($globimgmin))
+		{ 
+			die "\nError: specify a minimum for the imagemin option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/supersampling/)
+	{
+		$supersampling = shift; 
+		if(!defined($supersampling))
+		{ 
+			die "\nError: specify a factor for the supersampling option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/imagemax/)
+	{
+		$globimgmax = shift;
+		if(!defined($globimgmax))
+		{ 
+			die "\nError: specify a maximum for the imagemax option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/gridopacity/)
+	{
+		$gridopacity = shift;
+		if(!defined($gridopacity))
+		{ 
+			die "\nError: specify a transparency for the gridopacity option\n\n";
+		}
+	}
+	elsif($ARGV =~ m/rgbimagesize/)
+	{
+		my $csvalues = shift;
+		my @atoms = split /,/, $csvalues;
+		$rgbimagewidth = $atoms[0];
+		$rgbimageheight = $atoms[1];
+		if(!defined($rgbimagewidth) || !defined($rgbimageheight))
+		{ 
+			die "\nError: specify comma separated values for the rgbimagesize option\n\n";
+		}
+	}
+	else
+	{
+		die "\n${usage}Error: unknown option ${ARGV}\n\n";
+	}
+}
+
+
+
+if(!$mincinput or !($mincinput =~ m/.mnc/))
+{
+	die "Error: specify a minc file\n\n";
+}
+
+#create a base grid
+create_grid_object($gridoriginal, $mincinput, $gridsize, $axis, $slice);
+
+if($transform)
+{
+	#resample the base grid using the transfrom
+	if(!($transform =~ m/.xfm/) )
+	{
+		die "Error: the specified transformation is not valid: $transform\n\n";
+	}
+	
+	resample_grid_object($gridoriginal, $gridresampled, $mincinput, $axis, $slice);
+	
+	if($raytrace)
+	{
+		create_rgb_output($mincinput,$rgboutput,$gridresampled);
+	}
+}
+else
+{
+	if($raytrace)
+	{
+		create_rgb_output($mincinput,$rgboutput,$gridoriginal);
+	}
+}
+
+if(! $saveobjfiles)
+{
+	system("rm -f $gridoriginal");
+	system("rm -f $gridresampled");
+	my $objectslicename = $rgboutput;
+	$objectslicename =~ s/.rgb//;
+	system("rm -f ${objectslicename}_slice_${axis}_${slice}.obj");
+}
+
+
+###############################################################################
+
+
+sub resample_grid_object
+{
+	my $localgridin = shift;
+	my $localgridout = shift;
+	
+	my $localminc = shift;
+	my $localaxis = shift;
+	my $localslice = shift;
+	
+	
+	#copy the input object before resampling it
+	system("cp ${localgridin} ${localgridout}");
+	
+	#resample the object
+	system("transform_objects ${localgridout} ${transform}");
+	
+	#create temporary read file
+	my $tempreadfile = $localgridout;
+	$tempreadfile =~ s/.obj/_temp.obj/;
+	system("mv ${localgridout} ${tempreadfile}");
+	
+	#find out what the value for the static axis is
+	my($xlength, $ylength, $zlength, 
+		$xstart, $ystart, $zstart, $filestep) = get_file_info($localminc);
+	my $static_pos;
+	if($localaxis =~ m/x/)
+	{		
+		$static_pos = $xstart + $filestep * $localslice;
+	}
+	elsif($localaxis =~ m/y/)
+	{
+		$static_pos = $ystart + $filestep * $localslice;
+	}
+	elsif($localaxis =~ m/z/)
+	{
+		$static_pos = $zstart + $filestep * $localslice;
+	}
+	else
+	{
+		die "Error: unkown axis ${localaxis}\n\n";
+	}
+	
+	#straighten the "static" axis
+	open(READGRID, "< ${tempreadfile}");
+	open(WRITEGRID, "> ${localgridout}");
+	my @lines = <READGRID>;
+	my $straighten = 0;
+	my $done = 0;
+	for(my $i = 0; $i <= $#lines; $i++)
+	{
+		my @atoms = split " ", $lines[$i];
+		#progress through the object file until we are dealing with the coordinates
+		if($straighten)
+		{
+			if($#atoms == 2)
+			{
+				if($localaxis =~ m/x/)
+				{
+					print WRITEGRID "${static_pos} ", $atoms[1], " ", $atoms[2], "\n";
+				}
+				elsif($localaxis =~ m/y/)
+				{
+					print WRITEGRID $atoms[0], " ${static_pos} ", $atoms[2], "\n";
+				}
+				elsif($localaxis =~ m/z/)
+				{
+					print WRITEGRID $atoms[0], " ", $atoms[1], " ${static_pos}\n";
+				}			
+			}
+			else
+			{
+				print WRITEGRID printatoms(\@atoms);
+				$straighten = 0;
+			}
+		}
+		else
+		{
+			if(! $done)
+			{
+				if($atoms[0] =~ m/L/)
+				{
+					$straighten = 1;
+					$done = 1;
+				}
+			}
+			print WRITEGRID printatoms(\@atoms);
+		}
+		
+	}
+	
+	close(READGRID);
+	close(WRITEGRID);
+	
+	
+	system("rm -f $tempreadfile");
+}
+
+###############################################################################
+
+sub printatoms
+{
+	my $atoms = shift; #array ref
+	
+	my $writeout;
+	for(my $i = 0; $i <= $#{ $atoms }; $i++)
+	{
+		$writeout .= "@$atoms[$i] ";
+	} 
+	
+	$writeout .= "\n";
+	
+	return $writeout;
+}
+
+###############################################################################
+
+sub create_grid_object
+{
+	
+	my $localgrid = shift;
+	my $localminc = shift;
+	my $localgridsize = shift;
+	my $localaxis = shift;
+	my $localslice = shift;
+	
+	
+	
+	my($xlength, $ylength, $zlength, 
+		$xstart, $ystart, $zstart, $filestep) = get_file_info($localminc);
+	
+	if(!$localgridsize)
+	{
+		$localgridsize = 16 * $filestep;
+	}
+	
+	print "\nCreating a: \n${localaxis}-slice ${localslice} grid \nfor file ${localminc} \nwith gridsize ${localgridsize}\n\n";
+	
+	my $linewidth = $filestep/3;
+	
+	my ($linesdir1, $linesdir2,
+		$pointsonline1, $pointsonline2); 
+		
+	my ($x_pos, $y_pos, $z_pos);
+	if($localaxis =~ m/x/)
+	{
+		$linesdir1 = int $ylength / ($localgridsize / $filestep);
+		$pointsonline1 = $zlength;
+		
+		$linesdir2 = int $zlength / ($localgridsize / $filestep);
+		$pointsonline2 = $ylength;
+		
+		$x_pos = $xstart + $filestep * $localslice;
+	}
+	elsif($localaxis =~ m/y/)
+	{
+		$linesdir1 = int $xlength / ($localgridsize / $filestep);
+		$pointsonline1 = $zlength;
+		
+		$linesdir2 = int $zlength / ($localgridsize / $filestep);
+		$pointsonline2 = $xlength;
+		
+		$y_pos = $ystart + $filestep * $localslice;
+	}
+	elsif($localaxis =~ m/z/)
+	{
+		$linesdir1 = int $xlength / ($localgridsize / $filestep);
+		$pointsonline1 = $ylength;
+		
+		$linesdir2 = int $ylength / ($localgridsize / $filestep);
+		$pointsonline2 = $xlength;
+		
+		$z_pos = $zstart + $filestep * $localslice;
+	}
+	else
+	{
+		die "Error: unkown axis ${localaxis}\n\n";
+	}
+	
+	open(GRID, "> $localgrid");
+	#print the header, specifying that it is a lines object (L)
+	#the linewidth and the number of points in total
+	print GRID "L ${linewidth} ", ${linesdir1}*${pointsonline1} + ${linesdir2}*${pointsonline2}, "\n\n";
+	
+	
+	#print the lines in directoin 1
+	for(my $i = 1; $i <= $linesdir1; $i++)
+	{
+		if($localaxis =~ m/x/)
+		{
+			#first loop, so creating lines perpendicular to y
+			$y_pos = $ystart + ($i - 1) * $localgridsize;
+			$z_pos = $zstart;
+			
+			for(my $j = 0; $j <= $zlength - 1; $j ++)
+			{
+				print GRID $x_pos, " ", $y_pos, " ", $z_pos + $j * $filestep, "\n";
+			}
+		}
+		elsif($localaxis =~ m/y/)
+		{
+			#first loop, so creating lines parallel to x
+			$x_pos = $xstart + ($i - 1) * $localgridsize;
+			$z_pos = $zstart;
+			
+			for(my $j = 0; $j <= $zlength - 1; $j ++)
+			{
+				print GRID $x_pos, " ", $y_pos, " ", $z_pos + $j * $filestep, "\n";
+			}
+		}
+		elsif($localaxis =~ m/z/)
+		{
+			#first loop, so creating lines parallel to x
+			$x_pos = $xstart + ($i - 1) * $localgridsize;
+			$y_pos = $ystart;
+			
+			for(my $j = 0; $j <= $ylength - 1; $j ++)
+			{
+				print GRID $x_pos, " ", $y_pos + $j * $filestep, " ", $z_pos, "\n";
+			}
+		}
+	}
+	
+	#print the lines in directoin 2
+	for(my $i = 1; $i <= $linesdir2; $i++)
+	{
+		#begin point of line
+		if($localaxis =~ m/x/)
+		{
+			#second loop, so creating lines perpendicular to z
+			$y_pos = $ystart;
+			$z_pos = $zstart + ($i - 1) * $localgridsize;
+			
+			for(my $j = 0; $j <= $ylength - 1; $j ++)
+			{
+				print GRID $x_pos, " ", $y_pos + $j * $filestep, " ", $z_pos, "\n";
+			}
+		}
+		elsif($localaxis =~ m/y/)
+		{
+			#second loop, so creating lines parallel to z
+			$x_pos = $xstart;
+			$z_pos = $zstart + ($i - 1) * $localgridsize;
+			
+			for(my $j = 0; $j <= $xlength - 1; $j ++)
+			{
+				print GRID $x_pos + $j * $filestep, " ", $y_pos, " ", $z_pos, "\n";
+			}
+		}
+		elsif($localaxis =~ m/z/)
+		{
+			#second loop, so creating lines parallel to y
+			$x_pos = $xstart;
+			$y_pos = $ystart + ($i - 1) * $localgridsize;
+			
+			for(my $j = 0; $j <= $xlength - 1; $j ++)
+			{
+				print GRID $x_pos + $j * $filestep, " ", $y_pos, " ", $z_pos, "\n";
+			}
+		}
+	}
+	
+	print GRID "\n";
+	#print the number of lines
+	print GRID $linesdir1 + $linesdir2, "\n";
+	#print the coloring scheme (0 all lines same color, 0 red 1 green 0 blue 0.7 opacity)
+	print GRID "0 0 1 0 ${gridopacity} \n\n";
+	#print the number of points in each line
+	for(my $i = 1; $i <= $linesdir1; $i++)
+	{
+		print GRID $pointsonline1, " ";
+	}
+	for(my $i = 1; $i <= $linesdir2; $i++)
+	{
+		print GRID $pointsonline2, " ";
+	}
+	print GRID "\n\n";
+	#print the indices for the points in the lines starting at 0
+	for(my $i = 0; $i <= $linesdir1 - 1; $i++)
+	{
+		for(my $j = 0; $j <= $pointsonline1 - 1; $j++)
+		{
+			print GRID ($i * $pointsonline1) + $j , " ";
+		}
+		print GRID "\n";
+	}
+	my $startindex = $linesdir1 * $pointsonline1;
+	for(my $i = 0; $i <= $linesdir2 - 1; $i++)
+	{
+		for(my $j = 0; $j <= $pointsonline2 - 1; $j++)
+		{
+			print GRID $startindex + ($i * $pointsonline2) + $j , " ";
+		}
+		print GRID "\n";
+	}
+	print GRID "\n";
+	close(GRID);
+}
+
+
+###############################################################################
+
+
+sub add_additional_slice
+{
+	my $addfile = shift;
+	my $addcolour = shift;
+	my $addrange = shift;
+	my $addtrans = shift;
+	
+	my $returnoutput;
+	my @atoms;
+	my $rangemin;
+	my $rangemax;
+	
+	if($addcolour and $addrange and $addtrans)
+	{
+		@atoms = split /,/, $addrange;
+		$rangemin = $atoms[0];
+		$rangemax = $atoms[1];
+		$returnoutput = "-under transparent ";
+		if($addcolour =~ m/hotred/)
+		{
+			$returnoutput .= "-usercc xPKGDATADIRx/hotred ";
+		}
+		elsif($addcolour =~ m/hotblue/)
+		{
+			$returnoutput .= "-usercc xPKGDATADIRx/hotblue ";
+		}
+		else
+		{
+			$returnoutput .= "-${addcolour} ";
+		}
+		$returnoutput .= "${rangemin} ${rangemax} ${addfile} 0 ${addtrans} ";
+		
+		return $returnoutput;
+	}
+	else
+	{
+		if(!$addcolour)
+		{
+			die "Error: specify a colour for the additional slice\n\n";
+		}
+		elsif(!$addrange)
+		{
+			die "Error: specify a range for the additional slice\n\n";
+		}
+		else
+		{
+			die "Error: specify a transparency for the additional slice\n\n";
+		}
+	}
+}
+
+
+###############################################################################
+
+
+sub create_rgb_output
+{
+	my $localmincfile = shift;
+	my $localrgboutput = shift;
+	my $localgridoutput = shift;
+	
+	#first create a slice object
+	my $objectslicename = $localrgboutput;
+	$objectslicename =~ s/.rgb//;
+	system("make_slice ${localmincfile} ${objectslicename}_slice_${axis}_${slice}.obj ${axis} v ${slice}");
+	
+	my $image_min;
+	my $image_max;
+	if($globimgmax and $globimgmin)
+	{
+		$image_min = $globimgmin;
+		$image_max = $globimgmax;
+	}
+	else
+	{
+		my $commandlineinput;
+		if(defined($mask))
+		{
+			Spawn(["mincstats", "-min", "-quiet", ${localmincfile}, "-mask", "${mask}", "-mask_binvalue", 1], stdout=>\$commandlineinput);
+		}
+		else
+		{
+			Spawn(["mincstats", "-min", "-quiet", ${localmincfile}], stdout=>\$commandlineinput);
+		}
+		my @atoms = split /\n/, $commandlineinput;
+		$image_min = $atoms[0];
+		if(defined($mask))
+		{
+			Spawn(["mincstats", "-max", "-quiet", ${localmincfile}, "-mask", "${mask}", "-mask_binvalue", 1], stdout=>\$commandlineinput);
+		}
+		else
+		{
+			Spawn(["mincstats", "-max", "-quiet", ${localmincfile}], stdout=>\$commandlineinput);
+		}
+		@atoms = split /\n/, $commandlineinput;
+		$image_max = $atoms[0];
+		
+		#change the max to 3/4 of actual range
+		my $totalrange = abs($image_min) + abs($image_max);
+		my $onequarter = $totalrange / 4;
+		$image_max = $image_max - $onequarter;
+		
+		if($globimgmax)
+		{
+			$image_max = $globimgmax;
+		}
+		if($globimgmin)
+		{
+			$image_min = $globimgmin;
+		}
+	}
+	
+	#ray_trace the grid
+	my $raytracecommand = "ray_trace -output ${localrgboutput} ";
+	$raytracecommand .= "-light ${localgridoutput} -gray ${image_min} ${image_max} ";
+	$raytracecommand .= "${localmincfile} 0 1 ";
+	my $rangemin = undef;
+	my $rangemax = undef;
+	if($additional1)
+	{
+		$raytracecommand .= add_additional_slice($additional1,$colour1,$range1,$transparency1);
+	}
+	if($additional2)
+	{
+		$raytracecommand .= add_additional_slice($additional2,$colour2,$range2,$transparency2);
+	}
+	$raytracecommand .= "${objectslicename}_slice_${axis}_${slice}.obj ";
+	$raytracecommand .= "-size ${rgbimagewidth} ${rgbimageheight} -bg black -crop ";
+	if($axis =~ /x/)
+	{
+		$raytracecommand .= "-right ";
+	}
+	elsif($axis =~ /y/)
+	{
+		$raytracecommand .= "-back ";
+	}
+	else
+	{
+		$raytracecommand .= "-top ";
+	}
+	$raytracecommand .= "-sup ${supersampling} ";
+	
+	print "\n\n\n$raytracecommand\n\n\n";
+	
+	system("${raytracecommand}");
+}
+
+
+###############################################################################
+
+
+###############################################################################
+# assumes that mincinfo will produce results containing: (example)
+# 
+#     dimension name         length         step        start
+#     --------------         ------         ----        -----
+#     zspace                    282         0.03         -4.2
+#     yspace                    548         0.03        -8.19
+#     xspace                    420         0.03        -6.27
+# 
+# where the only thing really being assumed 
+# is the order         length  -  step  -  start
+# 
+###############################################################################
+sub get_file_info
+{
+	my $localmincfile = shift;
+	
+	if(! ($localmincfile =~ m/.mnc/))
+	{
+		die "Error: input file is not a minc file\n\n";
+	}
+	
+	my ($stepx, $stepy, $stepz, 
+		$lengthx, $lengthy, $lengthz,
+		$startx, $starty, $startz);
+	
+	my $commandlineinput;
+	Spawn(["mincinfo", ${localmincfile}], stdout=>\$commandlineinput);
+	
+	my @lines = split /\n/, $commandlineinput;
+	for(my $i = 0; $i <= $#lines; $i++)
+	{
+		my @atoms = split " ", $lines[$i];
+		if($atoms[0] =~ m/xspace/)
+		{
+			$lengthx = $atoms[1];
+			$stepx = $atoms[2];
+			$startx = $atoms[3];
+		}
+		elsif($atoms[0] =~ m/yspace/)
+		{
+			$lengthy = $atoms[1];
+			$stepy = $atoms[2];
+			$starty = $atoms[3];
+		}
+		elsif($atoms[0] =~ m/zspace/)
+		{
+			$lengthz = $atoms[1];
+			$stepz = $atoms[2];
+			$startz = $atoms[3];
+		}
+	}
+	
+	if(!(($stepx == $stepy) and ($stepz == $stepy)))
+	{
+		print "\nStep sizes of dimensions are not equal...\nAt the moment the program only works for isotropic volumes.\n\n";
+		exit;
+	}
+	
+	return($lengthx, $lengthy, $lengthz, 
+		$startx, $starty, $startz, $stepx);
+}

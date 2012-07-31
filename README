@@ -1,0 +1,22 @@
+minc-stuffs is repository that houses scripts and bits of code that are useful for performing calculations on and otherwise extracting information from minc files. Contributions are welcome from the entire minc community. 
+
+This code is licensed under the GNU General Public License. 
+
+To build and install the perl and src code:
+------------------------------------------
+./autogen.sh
+./configure
+make
+make install
+
+To build and install the python scripts:
+---------------------------------------
+python setup.py install
+
+Installation Notes:
+-------------------
+1. If the minc2 libraries are not in your standard path, you will need to include --with-build-path=/path/with/minc-libraries when you run configure.
+2. As is standard with configure files, the default installation is in /usr/local/. To install elsewhere, specify --prefix=DIR when you run configure.
+3. The default python installation is also /usr/local/. To install elsewhere, specify --home=DIR or --prefix=DIR when running setup.py 
+
+In the future, autogen and configure may be updated to automatically run python setup.py install. 

@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+
+from pyminc.volumes.factory import *
+from numpy import *
+from optparse import OptionParser
+import tempfile
+import os
+import functools
+
+
+def compute_xcorr(sourcevol, targetvol, maskvol=None):
+
+    if maskvol:
+        maskvol = volumeFromFile(maskvol)
+        maskdata = maskvol.data
+    else:
+        maskdata = array(repeat(1, product(sourcevol.data.shape)))
+        maskdata.shape = sourcevol.data.shape
+
+
+    f1 = sum(sourcevol.data[maskdata > 0.5] * \
+             targetvol.data[maskdata > 0.5])
+    f2 = sum(sourcevol.data[maskdata > 0.5] ** 2)
+    f3 = sum(targetvol.data[maskdata > 0.5] ** 2)
+
+    return f1 / (sqrt(f2) * sqrt(f3))
+
+
+if __name__ == "__main__":
+    usage = "usage: %prog [options] vol1.mnc vol2.mnc"
+    parser = OptionParser(usage)
+
+    parser.add_option("-m", "--mask", dest="mask",
+                      help="mask to use for computing xcorr",
+                      type="string")
+
+    (options, args) = parser.parse_args()
+    if len(args) != 2:
+        parser.error("incorrect number of arguments")
+
+    source = args[0]
+    target = args[1]
+
+    sourcevol = volumeFromFile(source)
+    targetvol = volumeFromFile(target)
+
+    result = compute_xcorr(sourcevol, targetvol, options.mask)
+
+    print result
+
+    
+
+    
+    
+
+    
