@@ -22,6 +22,9 @@ if __name__ == "__main__":
     parser.add_option("--select", dest="select",
                       help="Label numbers to select (comma separated, i.e. 3,7,211) - outfile will be just these labels",
                       type="string")
+    parser.add_option("--remove", dest="remove",
+                      help="Label numbers to remove (comma separated, i.e. 3,7,211) - outfile will exclude these labels",
+                      type="string")
 
     (options, args) = parser.parse_args()
 
@@ -46,6 +49,12 @@ if __name__ == "__main__":
         labels = options.select.split(',')
         for l in labels:
             outlabels.data[inlabels.data == int(l)] = int(l)
+
+    if options.remove:
+	outlabels.data[::] = inlabels.data[::]
+	labels = options.remove.split(',')
+	for l in labels:
+	    outlabels.data[inlabels.data == int(l)] = 0
 
     if options.merge:
         addlabels = volumeFromFile(options.merge, dtype='ubyte')
