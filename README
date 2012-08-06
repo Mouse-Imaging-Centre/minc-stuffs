@@ -1,6 +1,7 @@
 minc-stuffs is repository that houses scripts and bits of code that are useful for performing calculations on and otherwise extracting information from minc files. Contributions are welcome from the entire minc community. 
 
-This code is licensed under the GNU General Public License. 
+This code is licensed under the 3-clause BSD License. 
+http://opensource.org/licenses/BSD-3-Clause
 
 To build and install the perl and src code:
 ------------------------------------------
