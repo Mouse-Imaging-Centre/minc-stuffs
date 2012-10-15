@@ -1,3 +1,7 @@
+2012-10-15 Matthijs van Eede <matthijs@phenogenomics.ca>
+	* in minc_displacement, changed how the minimum and maximum value of the output file is set. If 
+          these values are not properly initialized, the output volume is complete garbage
+
 2011-07-31  Miriam Friedel  <mfriedel@phenogenomics.ca>
 	* ChangeLog created as required for autoconf. A detailed list of changes can be found by using git log. 
 

@@ -107,12 +107,11 @@ int main(int argc, char *argv[]) {
   new_grid = create_volume(4, dimnames_grid, NC_SHORT, FALSE, 0.0, 0.0);
 
   //set_voxel_to_world_transform(new_grid, voxel_to_world);
-//   set_volume_real_range(new_grid, -100, 100);  
-  Real volume_max = -100;
-  Real volume_min = 100;
+  // initialize the new grid volume, otherwise the output will be
+  // garbage...
+  set_volume_real_range(new_grid, -100, 100);
   set_volume_sizes(new_grid, grid_sizes);
 
-  
   set_volume_separations(new_grid, grid_separation);
   set_volume_starts(new_grid, grid_starts);
   /*
@@ -147,29 +146,13 @@ int main(int argc, char *argv[]) {
 				&transformed[0], &transformed[1], 
 				&transformed[2]);
 	for(i=0; i < 3; i++) {
-	
-    if(transformed[i] < volume_min) {
-      volume_min = transformed[i];
-    }
-    if(original[i] < volume_min) {
-      volume_min = original[i];
-    }
-    if(transformed[i] > volume_max) {
-      volume_max = transformed[i];
-    }
-    if(original[i] > volume_max) {
-      volume_max = original[i];
-    }
-	
 	  value = transformed[i] - original[i];
 	  set_volume_real_value(new_grid, i, v1, v2, v3, 0, value);
 	}
       }
     }
   }
-  
-  set_volume_real_range(new_grid, volume_min, volume_max);
-  
+
   terminate_progress_report(&progress);
 
   printf("Outputting volume.\n");
