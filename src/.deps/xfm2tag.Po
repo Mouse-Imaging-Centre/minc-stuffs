@@ -1,105 +1,122 @@
 xfm2tag.o: xfm2tag.c /usr/include/stdio.h /usr/include/features.h \
- /usr/include/bits/predefs.h /usr/include/sys/cdefs.h \
- /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h \
- /usr/include/gnu/stubs-64.h \
- /usr/lib/gcc/x86_64-linux-gnu/4.4.3/include/stddef.h \
- /usr/include/bits/types.h /usr/include/bits/typesizes.h \
- /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
- /usr/lib/gcc/x86_64-linux-gnu/4.4.3/include/stdarg.h \
- /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
- /usr/include/bits/stdio.h /usr/include/bits/stdio2.h \
- /usr/include/stdlib.h /usr/include/sys/types.h /usr/include/time.h \
- /usr/include/endian.h /usr/include/bits/endian.h \
- /usr/include/bits/byteswap.h /usr/include/sys/select.h \
- /usr/include/bits/select.h /usr/include/bits/sigset.h \
- /usr/include/bits/time.h /usr/include/sys/sysmacros.h \
- /usr/include/bits/pthreadtypes.h /usr/include/alloca.h \
- /usr/include/bits/stdlib.h /usr/include/unistd.h \
- /usr/include/bits/posix_opt.h /usr/include/bits/confname.h \
- /usr/include/getopt.h /usr/include/bits/unistd.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/basic.h \
- /usr/include/math.h /usr/include/bits/huge_val.h \
- /usr/include/bits/huge_valf.h /usr/include/bits/huge_vall.h \
- /usr/include/bits/inf.h /usr/include/bits/nan.h \
- /usr/include/bits/mathdef.h /usr/include/bits/mathcalls.h \
- /usr/include/bits/mathinline.h /usr/include/memory.h \
- /usr/include/string.h /usr/include/xlocale.h /usr/include/bits/string.h \
- /usr/include/bits/string2.h /usr/include/bits/string3.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/def_math.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/system_dependent.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/string_funcs.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/files.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/arrays.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/alloc.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/geom_structs.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/progress.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/geometry.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/volume.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/minc.h \
- /usr/include/netcdf.h /usr/include/errno.h /usr/include/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/asm/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/predefs.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.7/include/stddef.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h \
+ /usr/include/_G_config.h /usr/include/wchar.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.7/include/stdarg.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/stdlib.h \
+ /usr/include/x86_64-linux-gnu/bits/waitflags.h \
+ /usr/include/x86_64-linux-gnu/bits/waitstatus.h /usr/include/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/byteswap.h \
+ /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/time.h \
+ /usr/include/x86_64-linux-gnu/sys/select.h \
+ /usr/include/x86_64-linux-gnu/bits/select.h \
+ /usr/include/x86_64-linux-gnu/bits/sigset.h \
+ /usr/include/x86_64-linux-gnu/bits/time.h \
+ /usr/include/x86_64-linux-gnu/bits/select2.h \
+ /usr/include/x86_64-linux-gnu/sys/sysmacros.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h /usr/include/alloca.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib.h /usr/include/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
+ /usr/include/x86_64-linux-gnu/bits/environments.h \
+ /usr/include/x86_64-linux-gnu/bits/confname.h /usr/include/getopt.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd.h \
+ /usr/local/minc2/include/volume_io.h \
+ /usr/local/minc2/include/volume_io/basic.h /usr/include/math.h \
+ /usr/include/x86_64-linux-gnu/bits/huge_val.h \
+ /usr/include/x86_64-linux-gnu/bits/huge_valf.h \
+ /usr/include/x86_64-linux-gnu/bits/huge_vall.h \
+ /usr/include/x86_64-linux-gnu/bits/inf.h \
+ /usr/include/x86_64-linux-gnu/bits/nan.h \
+ /usr/include/x86_64-linux-gnu/bits/mathdef.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
+ /usr/include/x86_64-linux-gnu/bits/mathinline.h /usr/include/memory.h \
+ /usr/include/string.h /usr/include/xlocale.h \
+ /usr/include/x86_64-linux-gnu/bits/string.h \
+ /usr/include/x86_64-linux-gnu/bits/string2.h \
+ /usr/include/x86_64-linux-gnu/bits/string3.h \
+ /usr/local/minc2/include/volume_io/def_math.h \
+ /usr/local/minc2/include/volume_io/system_dependent.h \
+ /usr/local/minc2/include/volume_io/string_funcs.h \
+ /usr/local/minc2/include/volume_io/files.h \
+ /usr/local/minc2/include/volume_io/arrays.h \
+ /usr/local/minc2/include/volume_io/alloc.h \
+ /usr/local/minc2/include/volume_io/geom_structs.h \
+ /usr/local/minc2/include/volume_io/progress.h \
+ /usr/local/minc2/include/volume_io/geometry.h \
+ /usr/local/minc2/include/volume_io/volume.h \
+ /usr/local/minc2/include/minc.h /usr/include/netcdf.h \
+ /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/transforms.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/multidim.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/volume_cache.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/vol_io_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/data_structures.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/objects.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/obj_defs.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/stack.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/bintree.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/colours.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/object_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/bitlist.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/hash.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/priority_queue.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/queue.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/skiplist.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/ds_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/geom.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/geom_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/trans.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/compute_xfm.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/trans_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/numerical.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/amoeba.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/histogram.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/minimization.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/statistics.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/numeric_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/prog_utils.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/global_lookup.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/prog_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/vols.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/colour_coding.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/vol_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/images.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/image_prototypes.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/ParseArgv.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/minc.h \
- /projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/time_stamp.h
+ /usr/local/minc2/include/volume_io/transforms.h \
+ /usr/local/minc2/include/volume_io/multidim.h \
+ /usr/local/minc2/include/volume_io/volume_cache.h \
+ /usr/local/minc2/include/volume_io/vol_io_prototypes.h \
+ /usr/local/minc2/include/bicpl.h \
+ /usr/local/minc2/include/bicpl/data_structures.h \
+ /usr/local/minc2/include/bicpl/objects.h \
+ /usr/local/minc2/include/bicpl/obj_defs.h \
+ /usr/local/minc2/include/bicpl/stack.h \
+ /usr/local/minc2/include/bicpl/bintree.h \
+ /usr/local/minc2/include/bicpl/colours.h \
+ /usr/local/minc2/include/bicpl/object_prototypes.h \
+ /usr/local/minc2/include/bicpl/bitlist.h \
+ /usr/local/minc2/include/bicpl/hash.h \
+ /usr/local/minc2/include/bicpl/priority_queue.h \
+ /usr/local/minc2/include/bicpl/queue.h \
+ /usr/local/minc2/include/bicpl/skiplist.h \
+ /usr/local/minc2/include/bicpl/ds_prototypes.h \
+ /usr/local/minc2/include/bicpl/geom.h \
+ /usr/local/minc2/include/bicpl/geom_prototypes.h \
+ /usr/local/minc2/include/bicpl/trans.h \
+ /usr/local/minc2/include/bicpl/compute_xfm.h \
+ /usr/local/minc2/include/bicpl/trans_prototypes.h \
+ /usr/local/minc2/include/bicpl/numerical.h \
+ /usr/local/minc2/include/bicpl/amoeba.h \
+ /usr/local/minc2/include/bicpl/histogram.h \
+ /usr/local/minc2/include/bicpl/minimization.h \
+ /usr/local/minc2/include/bicpl/statistics.h \
+ /usr/local/minc2/include/bicpl/numeric_prototypes.h \
+ /usr/local/minc2/include/bicpl/prog_utils.h \
+ /usr/local/minc2/include/bicpl/global_lookup.h \
+ /usr/local/minc2/include/bicpl/prog_prototypes.h \
+ /usr/local/minc2/include/bicpl/vols.h \
+ /usr/local/minc2/include/bicpl/colour_coding.h \
+ /usr/local/minc2/include/bicpl/vol_prototypes.h \
+ /usr/local/minc2/include/bicpl/images.h \
+ /usr/local/minc2/include/bicpl/image_prototypes.h \
+ /usr/local/minc2/include/ParseArgv.h /usr/local/minc2/include/minc.h \
+ /usr/local/minc2/include/time_stamp.h
 
 /usr/include/stdio.h:
 
 /usr/include/features.h:
 
-/usr/include/bits/predefs.h:
+/usr/include/x86_64-linux-gnu/bits/predefs.h:
 
-/usr/include/sys/cdefs.h:
+/usr/include/x86_64-linux-gnu/sys/cdefs.h:
 
-/usr/include/bits/wordsize.h:
+/usr/include/x86_64-linux-gnu/bits/wordsize.h:
 
-/usr/include/gnu/stubs.h:
+/usr/include/x86_64-linux-gnu/gnu/stubs.h:
 
-/usr/include/gnu/stubs-64.h:
+/usr/include/x86_64-linux-gnu/gnu/stubs-64.h:
 
-/usr/lib/gcc/x86_64-linux-gnu/4.4.3/include/stddef.h:
+/usr/lib/gcc/x86_64-linux-gnu/4.7/include/stddef.h:
 
-/usr/include/bits/types.h:
+/usr/include/x86_64-linux-gnu/bits/types.h:
 
-/usr/include/bits/typesizes.h:
+/usr/include/x86_64-linux-gnu/bits/typesizes.h:
 
 /usr/include/libio.h:
 
@@ -107,75 +124,83 @@ xfm2tag.o: xfm2tag.c /usr/include/stdio.h /usr/include/features.h \
 
 /usr/include/wchar.h:
 
-/usr/lib/gcc/x86_64-linux-gnu/4.4.3/include/stdarg.h:
+/usr/lib/gcc/x86_64-linux-gnu/4.7/include/stdarg.h:
 
-/usr/include/bits/stdio_lim.h:
+/usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
 
-/usr/include/bits/sys_errlist.h:
+/usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
 
-/usr/include/bits/stdio.h:
+/usr/include/x86_64-linux-gnu/bits/stdio.h:
 
-/usr/include/bits/stdio2.h:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:
 
 /usr/include/stdlib.h:
 
-/usr/include/sys/types.h:
+/usr/include/x86_64-linux-gnu/bits/waitflags.h:
 
-/usr/include/time.h:
+/usr/include/x86_64-linux-gnu/bits/waitstatus.h:
 
 /usr/include/endian.h:
 
-/usr/include/bits/endian.h:
+/usr/include/x86_64-linux-gnu/bits/endian.h:
 
-/usr/include/bits/byteswap.h:
+/usr/include/x86_64-linux-gnu/bits/byteswap.h:
 
-/usr/include/sys/select.h:
+/usr/include/x86_64-linux-gnu/sys/types.h:
 
-/usr/include/bits/select.h:
+/usr/include/time.h:
 
-/usr/include/bits/sigset.h:
+/usr/include/x86_64-linux-gnu/sys/select.h:
 
-/usr/include/bits/time.h:
+/usr/include/x86_64-linux-gnu/bits/select.h:
 
-/usr/include/sys/sysmacros.h:
+/usr/include/x86_64-linux-gnu/bits/sigset.h:
 
-/usr/include/bits/pthreadtypes.h:
+/usr/include/x86_64-linux-gnu/bits/time.h:
+
+/usr/include/x86_64-linux-gnu/bits/select2.h:
+
+/usr/include/x86_64-linux-gnu/sys/sysmacros.h:
+
+/usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
 
 /usr/include/alloca.h:
 
-/usr/include/bits/stdlib.h:
+/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 /usr/include/unistd.h:
 
-/usr/include/bits/posix_opt.h:
+/usr/include/x86_64-linux-gnu/bits/posix_opt.h:
 
-/usr/include/bits/confname.h:
+/usr/include/x86_64-linux-gnu/bits/environments.h:
+
+/usr/include/x86_64-linux-gnu/bits/confname.h:
 
 /usr/include/getopt.h:
 
-/usr/include/bits/unistd.h:
+/usr/include/x86_64-linux-gnu/bits/unistd.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io.h:
+/usr/local/minc2/include/volume_io.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/basic.h:
+/usr/local/minc2/include/volume_io/basic.h:
 
 /usr/include/math.h:
 
-/usr/include/bits/huge_val.h:
+/usr/include/x86_64-linux-gnu/bits/huge_val.h:
 
-/usr/include/bits/huge_valf.h:
+/usr/include/x86_64-linux-gnu/bits/huge_valf.h:
 
-/usr/include/bits/huge_vall.h:
+/usr/include/x86_64-linux-gnu/bits/huge_vall.h:
 
-/usr/include/bits/inf.h:
+/usr/include/x86_64-linux-gnu/bits/inf.h:
 
-/usr/include/bits/nan.h:
+/usr/include/x86_64-linux-gnu/bits/nan.h:
 
-/usr/include/bits/mathdef.h:
+/usr/include/x86_64-linux-gnu/bits/mathdef.h:
 
-/usr/include/bits/mathcalls.h:
+/usr/include/x86_64-linux-gnu/bits/mathcalls.h:
 
-/usr/include/bits/mathinline.h:
+/usr/include/x86_64-linux-gnu/bits/mathinline.h:
 
 /usr/include/memory.h:
 
@@ -183,124 +208,124 @@ xfm2tag.o: xfm2tag.c /usr/include/stdio.h /usr/include/features.h \
 
 /usr/include/xlocale.h:
 
-/usr/include/bits/string.h:
+/usr/include/x86_64-linux-gnu/bits/string.h:
 
-/usr/include/bits/string2.h:
+/usr/include/x86_64-linux-gnu/bits/string2.h:
 
-/usr/include/bits/string3.h:
+/usr/include/x86_64-linux-gnu/bits/string3.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/def_math.h:
+/usr/local/minc2/include/volume_io/def_math.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/system_dependent.h:
+/usr/local/minc2/include/volume_io/system_dependent.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/string_funcs.h:
+/usr/local/minc2/include/volume_io/string_funcs.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/files.h:
+/usr/local/minc2/include/volume_io/files.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/arrays.h:
+/usr/local/minc2/include/volume_io/arrays.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/alloc.h:
+/usr/local/minc2/include/volume_io/alloc.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/geom_structs.h:
+/usr/local/minc2/include/volume_io/geom_structs.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/progress.h:
+/usr/local/minc2/include/volume_io/progress.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/geometry.h:
+/usr/local/minc2/include/volume_io/geometry.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/volume.h:
+/usr/local/minc2/include/volume_io/volume.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/minc.h:
+/usr/local/minc2/include/minc.h:
 
 /usr/include/netcdf.h:
 
 /usr/include/errno.h:
 
-/usr/include/bits/errno.h:
+/usr/include/x86_64-linux-gnu/bits/errno.h:
 
 /usr/include/linux/errno.h:
 
-/usr/include/asm/errno.h:
+/usr/include/x86_64-linux-gnu/asm/errno.h:
 
 /usr/include/asm-generic/errno.h:
 
 /usr/include/asm-generic/errno-base.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/transforms.h:
+/usr/local/minc2/include/volume_io/transforms.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/multidim.h:
+/usr/local/minc2/include/volume_io/multidim.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/volume_cache.h:
+/usr/local/minc2/include/volume_io/volume_cache.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/volume_io/vol_io_prototypes.h:
+/usr/local/minc2/include/volume_io/vol_io_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl.h:
+/usr/local/minc2/include/bicpl.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/data_structures.h:
+/usr/local/minc2/include/bicpl/data_structures.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/objects.h:
+/usr/local/minc2/include/bicpl/objects.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/obj_defs.h:
+/usr/local/minc2/include/bicpl/obj_defs.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/stack.h:
+/usr/local/minc2/include/bicpl/stack.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/bintree.h:
+/usr/local/minc2/include/bicpl/bintree.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/colours.h:
+/usr/local/minc2/include/bicpl/colours.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/object_prototypes.h:
+/usr/local/minc2/include/bicpl/object_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/bitlist.h:
+/usr/local/minc2/include/bicpl/bitlist.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/hash.h:
+/usr/local/minc2/include/bicpl/hash.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/priority_queue.h:
+/usr/local/minc2/include/bicpl/priority_queue.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/queue.h:
+/usr/local/minc2/include/bicpl/queue.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/skiplist.h:
+/usr/local/minc2/include/bicpl/skiplist.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/ds_prototypes.h:
+/usr/local/minc2/include/bicpl/ds_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/geom.h:
+/usr/local/minc2/include/bicpl/geom.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/geom_prototypes.h:
+/usr/local/minc2/include/bicpl/geom_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/trans.h:
+/usr/local/minc2/include/bicpl/trans.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/compute_xfm.h:
+/usr/local/minc2/include/bicpl/compute_xfm.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/trans_prototypes.h:
+/usr/local/minc2/include/bicpl/trans_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/numerical.h:
+/usr/local/minc2/include/bicpl/numerical.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/amoeba.h:
+/usr/local/minc2/include/bicpl/amoeba.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/histogram.h:
+/usr/local/minc2/include/bicpl/histogram.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/minimization.h:
+/usr/local/minc2/include/bicpl/minimization.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/statistics.h:
+/usr/local/minc2/include/bicpl/statistics.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/numeric_prototypes.h:
+/usr/local/minc2/include/bicpl/numeric_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/prog_utils.h:
+/usr/local/minc2/include/bicpl/prog_utils.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/global_lookup.h:
+/usr/local/minc2/include/bicpl/global_lookup.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/prog_prototypes.h:
+/usr/local/minc2/include/bicpl/prog_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/vols.h:
+/usr/local/minc2/include/bicpl/vols.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/colour_coding.h:
+/usr/local/minc2/include/bicpl/colour_coding.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/vol_prototypes.h:
+/usr/local/minc2/include/bicpl/vol_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/images.h:
+/usr/local/minc2/include/bicpl/images.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/bicpl/image_prototypes.h:
+/usr/local/minc2/include/bicpl/image_prototypes.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/ParseArgv.h:
+/usr/local/minc2/include/ParseArgv.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/minc.h:
+/usr/local/minc2/include/minc.h:
 
-/projects/mice/share/arch/linux-x86_64-eglibc2_11_1//include/time_stamp.h:
+/usr/local/minc2/include/time_stamp.h:

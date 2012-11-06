@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+from optparse import OptionParser
+from pyminc.volumes.factory import *
+from numpy import *
+
+if __name__ == "__main__":
+    
+    usage = "usage: %prog [options] input.mnc atlas.mnc output.txt"
+    description = "Computes a value (mean, sum, etc.) of the input file for each label in the atlas and places the results in a text file."
+    parser = OptionParser(usage=usage, description=description)
+    
+    
+    parser.add_option("--mean", "-m", dest="function",
+                      help="Compute the mean",
+                      action="store_const", const="mean", default="mean")
+    parser.add_option("--sum", "-s", dest="function",
+                      help="Compute the sum",
+                      action="store_const", const="sum")
+    (options, args) = parser.parse_args()
+
+    if len(args) != 3:
+        parser.error("Incorrect number of arguments")
+    
+    inf = volumeFromFile(args[0], dtype="double")
+    atlas = volumeFromFile(args[1], dtype='ubyte')
+    output = open(args[2], 'w')
+    
+    labels = unique(atlas.data)
+    #print labels
+
+    for l in labels:
+        #print(l)
+        if options.function == "mean":
+            val = mean(inf.data[atlas.data == l])
+        elif options.function == "sum":
+            val = sum(inf.data[atlas.data == l])
+        output.write(str(int(l)) + "," + str(val) +  "\n")
+
+    inf.closeVolume()
+    atlas.closeVolume()
+    output.close()
+    

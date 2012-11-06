@@ -1,3 +1,7 @@
+2012-11-03 Jason Lerch <jason@phenogenomics.ca>
+	* moved average_values_across_segmentation to compute_values_across_segmentation
+	* added option to compute the sum to compute_values_across_segmentation
+
 2012-10-15 Matthijs van Eede <matthijs@phenogenomics.ca>
 	* in minc_displacement, changed how the minimum and maximum value of the output file is set. If 
           these values are not properly initialized, the output volume is complete garbage
