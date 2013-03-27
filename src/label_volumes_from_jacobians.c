@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     volumes[i] = 0;
   }
   
-  volume = voxel_separations[0] * voxel_separations[1] * voxel_separations[2];
+  volume = fabs(voxel_separations[0]) * fabs(voxel_separations[1]) * fabs(voxel_separations[2]);
 
   //printf("Computing tissue volumes.\n");
   for (i=0; i < count[0] * count[1] * count[2]; i++) {
