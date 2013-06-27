@@ -13,6 +13,9 @@ if __name__ == "__main__":
 
     parser = OptionParser(usage=usage, description=description)
 
+    parser.add_option("--convert", dest="convert",
+                      help="Convert input file to labels.",
+                      action="store_true", default=False)
     parser.add_option("--merge", dest="merge",
                       help="Second label file to whose labels are to be merged with the input_labels",
                       type="string")
@@ -25,6 +28,8 @@ if __name__ == "__main__":
     parser.add_option("--remove", dest="remove",
                       help="Label numbers to remove (comma separated, i.e. 3,7,211) - outfile will exclude these labels",
                       type="string")
+    parser.add_option("--binarize", help="threshold >0.5 and binarize output", action="store_true", default=False)
+    parser.add_option("-v", "--verbose", help='verbose output', action='store_true', default=False)
 
     (options, args) = parser.parse_args()
 
@@ -32,17 +37,23 @@ if __name__ == "__main__":
         parser.error("Incorrect number of arguments")
     
 
-    inlabels = volumeFromFile(args[0], dtype='ubyte')
-    outlabels = volumeLikeFile(args[0], args[1])
+    inlabels = volumeFromFile(args[0], dtype='ushort')
+    outlabels = volumeLikeFile(args[0], args[1], dtype='ushort', 
+                               volumeType="ushort", labels=True)
 
-    print("Labels found in input: %s" % unique(inlabels.data[::]))
+    if options.verbose:
+        print("Labels found in input: %s" % unique(inlabels.data[::]))
+
+    if options.convert == True:
+        outlabels.data[::] = rint(inlabels.data[::])
 
     if options.remap:
-        outlabels.data[::] = inlabels.data[::]
+        outlabels.data[::] = rint(inlabels.data[::])
         labelpairs = options.remap.split(',')
         for pair in labelpairs:
             labels = pair.split(':')
-            print("Mapping: %d to %d" % (int(labels[0]), int(labels[1])))
+            if options.verbose:
+                print("Mapping: %d to %d" % (int(labels[0]), int(labels[1])))
             outlabels.data[inlabels.data == int(labels[0])] = int(labels[1])
     
     if options.select:
@@ -51,10 +62,10 @@ if __name__ == "__main__":
             outlabels.data[inlabels.data == int(l)] = int(l)
 
     if options.remove:
-	outlabels.data[::] = inlabels.data[::]
-	labels = options.remove.split(',')
-	for l in labels:
-	    outlabels.data[inlabels.data == int(l)] = 0
+        outlabels.data[::] = rint(inlabels.data[::])
+        labels = options.remove.split(',')
+        for l in labels:
+            outlabels.data[inlabels.data == int(l)] = 0
 
     if options.merge:
         addlabels = volumeFromFile(options.merge, dtype='ubyte')
@@ -65,7 +76,10 @@ if __name__ == "__main__":
         # now add them together
         outlabels.data[::] = inlabels.data[::] + addlabels.data[::]
         addlabels.closeVolume()
-                      
+               
+    if options.binarize:
+        outlabels.data[outlabels.data > 0.5] = 1
+
     # write to file
     outlabels.writeFile()
     outlabels.closeVolume()
