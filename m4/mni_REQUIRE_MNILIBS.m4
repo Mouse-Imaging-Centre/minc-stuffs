@@ -24,9 +24,9 @@ AC_DEFUN([mni_REQUIRE_VOLUMEIO],
     if test "$with_minc2" = "yes"; then
       mni_REQUIRE_LIB(volume_io2,
   	              [#include <volume_io.h>],
-                      [Volume vol; 
-	 	      Real voxel = 0;
-                      Real x = convert_voxel_to_value(vol,voxel);])
+                      [VIO_Volume vol; 
+	 	      VIO_Real voxel = 0;
+                      VIO_Real x = convert_voxel_to_value(vol,voxel);])
     else
       mni_REQUIRE_LIB(volume_io,
   	              [#include <volume_io.h>],
@@ -41,10 +41,10 @@ AC_DEFUN([mni_REQUIRE_BICPL],
     AC_REQUIRE([mni_REQUIRE_VOLUMEIO])
     mni_REQUIRE_LIB(bicpl,
 		    [#include <bicpl.h>],
-		    [File_formats format;
+		    [VIO_File_formats format;
                      int n_obj;
                      object_struct** obj_list;
-                     Status s = input_graphics_file("",&format,&n_obj,&obj_list)])
+                     VIO_Status s = input_graphics_file("",&format,&n_obj,&obj_list)])
 ])
 
 AC_DEFUN([mni_REQUIRE_EBTKS],

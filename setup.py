@@ -14,7 +14,8 @@ setup(name="python-stuffs",
                "python/minc_label_ops", 
                "python/compute_values_across_segmentation", 
                "python/volumes_from_labels_only", 
-               "python/voxel_vote"],
+               "python/voxel_vote",
+               "python/replace_label_with_nearest_valid_label"],
       cmdclass = {'build_ext': build_ext},
       ext_modules = [Extension("cython_functions", ["python/cython_functions.pyx"])]
       )
