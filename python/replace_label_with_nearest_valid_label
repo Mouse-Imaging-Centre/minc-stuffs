@@ -1,0 +1,184 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from pyminc.volumes.factory import *
+import numpy as np
+from optparse import OptionParser
+import os
+import os.path
+import cython_functions
+import datetime as datetime
+import sys
+
+################################################################################
+################################################################################
+################################################################################
+# checks that file is a MINC2 file
+def is_minc_2_file(filename):
+  if not('.mnc' in filename):
+    return 0
+  mincversion = os.popen("mincinfo -minc_version %s" % (filename)).readlines()[-1]
+  if 'HDF5' in mincversion:
+    return 1
+  else:
+    return 0
+
+
+################################################################################
+################################################################################
+################################################################################
+if __name__ == "__main__":
+  
+  usage = "usage: %prog [options] input_labels.mnc updated_labels.mnc\n"
+  description  = """This program takes as input a segmented labels file. Using the
+option --replace-labels a comma separated list of label numbers can be
+entered. These labels will be replaced by the closest (non-zero) label 
+defined in the file. Example call for the program:
+
+%prog --replace-labels 180,181 input_labels.mnc output_labels.mnc
+
+it is important to note that all undesired labels should be specified
+using the replace-labels flag to ensure that the output file contains
+only desired label numbers.\n"""
+  
+  parser = OptionParser(usage=usage, description=description)
+  
+  parser.add_option("--replace-labels", dest="undesired_labels",
+                    help="Comma separated list of unwanted label numbers",
+                    type="string")
+  parser.add_option("--clobber", dest="clobber", default=False,
+                    help="Clobber output file",
+                    action="store_true")
+  parser.add_option("--verbose", dest="verbose", default=False,
+                    help="Be verbose",
+                    action="store_true")
+  
+  (options,args) = parser.parse_args()
+  
+  if len(args) != 2:
+    print description
+    parser.error("Incorrect number of arguments")
+  
+  # check whether input arguments are MINC2 files
+  if( is_minc_2_file(args[0]) == 0 ) :
+    print("Error: %s is not a MINC2 file\n" % (args[0]))
+    exit(1)
+  
+  # overwrite output file?
+  if( os.path.isfile(args[1]) and not(options.clobber) ):
+    print("Error: %s exists. Specify --clobber to overwrite the file\n" % (args[1]))
+    exit(1)
+  
+  # read in input label file as unsigned short (output should be unsigned short as well
+  # this will ensure enough values for the labels)
+  inlabels = volumeFromFile(args[0], 
+                            dtype="ushort", 
+                            labels=True)
+  inlabels.loadData()
+  
+  # initialize the output file using the input file
+  outlabels = volumeFromInstance(inlabels, 
+                                 args[1], 
+                                 dtype="ushort", 
+                                 volumeType="ushort",
+                                 labels=True, 
+                                 data=True)
+  
+  # make sure that the unwanted labels are specified
+  if( options.undesired_labels is None):
+    print("Error: specify the undesired labels using the --replace-labels flag\n")
+    exit(1)
+  
+  # read in the label numbers at uint16 ("unsigned short") so that all values are read in
+  # the same way
+  array_undesired_labels = np.fromstring(options.undesired_labels, dtype=np.uint16, sep=',')
+  
+  previous_unresolved = -1
+  current_unresolved = cython_functions.substitute_labels_using_26_nearest_neighbors(inlabels.data, outlabels.data, array_undesired_labels)
+  if(options.verbose):
+    print("Number of unresolved labels: %f \n" % (current_unresolved))
+  while( current_unresolved > 0 and not(previous_unresolved == current_unresolved)):
+    previous_unresolved = current_unresolved
+    copy_of_data = outlabels.data[::]
+    current_unresolved = cython_functions.substitute_labels_using_26_nearest_neighbors(copy_of_data, outlabels.data, array_undesired_labels)
+    if(options.verbose):
+      print("Number of unresolved labels: %f \n" % (current_unresolved))
+  
+  # ensure integers
+  outlabels.data[::] = np.rint(outlabels.data[::])
+  
+  # add history to the output file
+  addToHist = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " >>> " + " ".join(sys.argv)
+  outlabels.appendAndWriteHistory(history=addToHist)
+  outlabels.writeFile()
+  outlabels.closeVolume()
+  
+  if(options.verbose):
+    print("Done!\n")
+  
+  # check that the range of the output file is set correctly. After substituting 
+  # labels, the min and max might have changed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ###### create a datastructure of coordinates with label values (exclude 0s and undesired labels)
+  ###### --numpy array-- 
+  ###### the inefficient way first: make sure the code works
+  ###### keep the index of the voxels, this will be used to compute the distance
+  ###### from each label point to the labels that need to be replaced
+  #####label_iterator_setup = np.nditer(inlabels.data, flags=['multi_index'])
+  ###### initialize the array with coordinates and the corresponding label values
+  #####label_coordinates = np.array([[-99999,-99999,-99999]])
+  #####label_values      = np.array([[-99999]])
+  
+  #####if(options.verbose):
+    #####print("Creating array of valid label coordinates and values...\n")
+    
+  #####while not label_iterator_setup.finished:
+    ###### store only coordinates and label values when the label is not 0,
+    ###### nor in the list of undesired labels
+    #####if( not(label_iterator_setup[0] == 0) and not(label_iterator_setup[0] in array_undesired_labels) ): 
+      #####label_coordinates = np.append(label_coordinates, np.asmatrix(label_iterator_setup.multi_index), axis=0)  # update array of label coordinates
+      #####label_values = np.append(label_values, np.asmatrix(label_iterator_setup[0]), axis=0)                     # update array of label values
+    #####label_iterator_setup.iternext()
+  
+  #####if(options.verbose):
+    #####print("Done!\n")
+  
+  ###### for all labels in the undesired/substitute list:
+  ######  compute distance from voxel to list of possible substitutes
+  ######  use bruteforce argsort to sort list and get closest neighbor
+  ######  replace voxel
+  
+  #####label_iterator_main = np.nditer(inlabels.data, flags=['multi_index'])
+  
+  #####if(options.verbose):
+    #####print("Replacing labels <%s>...\n" % (options.undesired_labels))
+  
+  ###### given 2 point p1, and p2 with x1,y1,z1 and x2,y2,z2:
+  ###### distance between p1 and p2 is:
+  ######
+  ######  sqrt( (x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2 )
+  ######
+  #####while not label_iterator_main.finished:
+    #####if( label_iterator_main[0] in array_undesired_labels ):
+      #####point = np.asmatrix(label_iterator_main.multi_index)             # coordinates of current point
+      #####point_sub = np.subtract(label_coordinates, point)                # subtract coordinates 
+      #####sum_squared_diff = np.multiply(point_sub, point_sub).sum(axis=1) # take sum of squares
+      #####distance = np.sqrt(sum_squared_diff)                             # finally distance is the square root
+      #####ndx = distance.argsort()                                                # indirect sort
+      #####print("Current point <%s> " % (point))
+      #####print("closest point <%s> " % (label_coordinates[ndx[:1]]))
+    #####label_iterator_main.iternext()
