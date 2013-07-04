@@ -24,31 +24,29 @@ static ArgvInfo argTable[] = {
 
 int main(int argc, char *argv[]) {
   int v1, v2, v3, v4;
-  int sizes[MAX_DIMENSIONS], grid_sizes[4];
+  int sizes[VIO_MAX_DIMENSIONS], grid_sizes[4];
   int n_concat_transforms, i;
-  char *arg_string;
+  VIO_STR arg_string;
   char *input_volume_name;
   char *input_xfm;
-  char *outfile;
-  Real w1, w2, w3;
-  Real nw1, nw2, nw3;
-  Real original[3], transformed[3];
-  Real value;
-  Real cosine[3];
-  Real original_separation[3], grid_separation[4];
-  Real original_starts[3], grid_starts[4];
-  Volume eval_volume, new_grid;
-  General_transform xfm, *voxel_to_world;
-  STRING *dimnames, dimnames_grid[4];
-  progress_struct progress;
+  VIO_STR outfile;
+  VIO_Real w1, w2, w3;
+  VIO_Real nw1, nw2, nw3;
+  VIO_Real original[3], transformed[3];
+  VIO_Real value;
+  VIO_Real cosine[3];
+  VIO_Real original_separation[3], grid_separation[4];
+  VIO_Real original_starts[3], grid_starts[4];
+  VIO_Volume eval_volume, new_grid;
+  VIO_General_transform xfm, *voxel_to_world;
+  VIO_STR *dimnames, dimnames_grid[4];
+  VIO_progress_struct progress;
   
   arg_string = time_stamp(argc, argv);
 
   /* Check arguments   */
   if(ParseArgv(&argc, argv, argTable, 0) || (argc != 4)){
-    fprintf(stderr, 
-	    "\nUsage: %s [options] input.mnc input.xfm output_grid.mnc\n", 
-	    argv[0]);
+    fprintf(stderr, "\nUsage: %s [options] input.mnc input.xfm output_grid.mnc\n", argv[0]);
     fprintf(stderr, "       %s -help\n\n", argv[0]);
     exit(EXIT_FAILURE);
   }
@@ -67,22 +65,20 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
   if(access(outfile, F_OK) == 0 && !clobber){
-    fprintf(stderr, "%s: %s exists! (use -clobber to overwrite)\n\n", 
-	    argv[0], outfile);
+    fprintf(stderr, "%s: %s exists! (use -clobber to overwrite)\n\n", argv[0], outfile);
     exit(EXIT_FAILURE);
   }
 
   /*--- input the volume */
   /*
   if( input_volume( input_volume_name, 3, NULL, MI_ORIGINAL_TYPE, 
-                    FALSE, 0.0, 0.0, TRUE, &eval_volume,
-		    (minc_input_options *) NULL ) != OK )
+                    FALSE, 0.0, 0.0, TRUE, &eval_volume,(minc_input_options *) NULL ) != OK )
     return( 1 );
   */
 
-  if (input_volume_header_only( input_volume_name, 3, NULL, &eval_volume,
-				(minc_input_options *) NULL ) != OK ) 
+  if (input_volume_header_only( input_volume_name, 3, NULL, &eval_volume,(minc_input_options *) NULL ) != VIO_OK ) { 
     return( 1 );
+  }
 
   /* get information about the volume */
   get_volume_sizes( eval_volume, sizes );
@@ -124,7 +120,7 @@ int main(int argc, char *argv[]) {
   alloc_volume_data(new_grid);
 
   /* get the transforms */
-  if( input_transform_file( input_xfm, &xfm ) != OK )
+  if( input_transform_file( input_xfm, &xfm ) != VIO_OK )
     return( 1 );
 
   /* see how many transforms will be applied */
@@ -140,15 +136,16 @@ int main(int argc, char *argv[]) {
     update_progress_report(&progress, v1 + 1);
     for( v2 = 0;  v2 < sizes[1];  ++v2 ) {
       for( v3 = 0;  v3 < sizes[2];  ++v3 ) {
-	convert_3D_voxel_to_world(eval_volume, v1, v2, v3, &original[0], 
-				  &original[1], &original[2]);
-	general_transform_point(&xfm, original[0], original[1], original[2], 
-				&transformed[0], &transformed[1], 
-				&transformed[2]);
-	for(i=0; i < 3; i++) {
-	  value = transformed[i] - original[i];
-	  set_volume_real_value(new_grid, i, v1, v2, v3, 0, value);
-	}
+        convert_3D_voxel_to_world(eval_volume, 
+                                  v1, v2, v3, 
+                                  &original[0], &original[1], &original[2]);
+        general_transform_point(&xfm, 
+                                original[0], original[1], original[2], 
+                                &transformed[0], &transformed[1], &transformed[2]);
+        for(i=0; i < 3; i++) {
+          value = transformed[i] - original[i];
+          set_volume_real_value(new_grid, i, v1, v2, v3, 0, value);
+        }
       }
     }
   }
@@ -157,8 +154,7 @@ int main(int argc, char *argv[]) {
 
   printf("Outputting volume.\n");
 
-  output_volume(outfile, MI_ORIGINAL_TYPE, TRUE, 0.0, 0.0, 
-		new_grid, arg_string, NULL);
+  output_volume(outfile, MI_ORIGINAL_TYPE, TRUE, 0.0, 0.0, new_grid, arg_string, NULL);
 
   return(0);
 

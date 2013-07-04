@@ -33,17 +33,17 @@ static ArgvInfo argTable[] = {
 };
 
 int main(int argc, char *argv[]) {
-  Volume            eval_volume, mask_volume;
-  General_transform xfm;
-  char              *output_tagfile_name;
-  char              *input_volume_name;
-  char              *input_transform_name;
-  int               sizes[MAX_DIMENSIONS];
-  FILE              *tagfile;
-  Real              world_coordinates[3];
-  Real              target_coordinates[3];
-  int               counter_offset, use_voxel;
-  int               v1,v2,v3;
+  VIO_Volume            eval_volume, mask_volume;
+  VIO_General_transform xfm;
+  char                  *output_tagfile_name;
+  char                  *input_volume_name;
+  char                  *input_transform_name;
+  int                   sizes[VIO_MAX_DIMENSIONS];
+  FILE                  *tagfile;
+  VIO_Real              world_coordinates[3];
+  VIO_Real              target_coordinates[3];
+  int                   counter_offset, use_voxel;
+  int                   v1,v2,v3;
 
   /* handle arguments */
   if(ParseArgv(&argc, argv, argTable, 0) || (argc != 4)){
@@ -76,14 +76,14 @@ int main(int argc, char *argv[]) {
 
   /* input the volume */
   if( input_volume_header_only( input_volume_name, 3, NULL, &eval_volume,
-				(minc_input_options *) NULL ) != OK )
+				(minc_input_options *) NULL ) != VIO_OK )
     return( 1 );
 
   /* input the mask if so desired*/
   if (mask_file != NULL) {
     if( input_volume( mask_file, 3, NULL, MI_ORIGINAL_TYPE,
 		      FALSE, 0.0, 0.0, TRUE, &mask_volume, 
-		      (minc_input_options *) NULL) != OK )
+		      (minc_input_options *) NULL) != VIO_OK )
       return( 1 );
   }
 
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
   get_volume_sizes( eval_volume, sizes );
   
   /* get the transforms */
-  if( input_transform_file( input_transform_name, &xfm ) != OK )
+  if( input_transform_file( input_transform_name, &xfm ) != VIO_OK )
     return( 1 );
 
   /* open the tagfile for editing */

@@ -13,9 +13,9 @@
 int main(int argc, char **argv) {
   mihandle_t    hvol_structures, hvol_jacobians;
   midimhandle_t dimensions_structures[3], dimensions_jacobians[3];
-  unsigned int  size_structures[3], size_jacobians[3];
+  misize_t      size_structures[3], size_jacobians[3];
   unsigned int  start_structures[3], count_structures[3];
-  unsigned long start[3], count[3];
+  misize_t      start[3], count[3];
   double        volumes[256], voxel_separations[3];
   int           i;
   double        *jacobians;
@@ -86,8 +86,8 @@ int main(int argc, char **argv) {
 
   //printf("Getting hyperslab.\n");
   if (miget_real_value_hyperslab(hvol_jacobians, MI_TYPE_DOUBLE,
-				 (unsigned long *)start, 
-				 (unsigned long *)count,
+				 start, 
+				 count,
 				 jacobians) < 0) {
     fprintf(stderr, "Could not get hyperslab\n");
   }

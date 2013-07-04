@@ -13,9 +13,9 @@
 int main(int argc, char **argv) {
   mihandle_t    hvol_structures, hvol_counts;
   midimhandle_t dimensions_structures[3], dimensions_counts[3];
-  unsigned int  size_structures[3], size_counts[3];
+  misize_t      size_structures[3], size_counts[3];
   unsigned int  start_structures[3], count_structures[3];
-  unsigned long start[3], count[3];
+  misize_t      start[3], count[3];
   double        structure_counts[999999], voxel_separations[3];
   int           i;
   double        *counts;
@@ -80,16 +80,19 @@ int main(int argc, char **argv) {
                                  size_structures[2] * sizeof(double));
 
   /* Getting hyperslab of the counts file (load full file into memory) */
-  if (miget_real_value_hyperslab(hvol_counts, MI_TYPE_DOUBLE,
-                                 (unsigned long *)start, 
-                                 (unsigned long *)count,
+  if (miget_real_value_hyperslab(hvol_counts, 
+                                 MI_TYPE_DOUBLE,
+                                 start, 
+                                 count,
                                  counts) < 0) {
     fprintf(stderr, "Could not get hyperslab\n");
   }
 
   /* Getting hyperslab of the segmentation/labels file for the structures (load full file into memory) */
-  if (miget_real_value_hyperslab(hvol_structures, MI_TYPE_DOUBLE,
-                                 start, count,
+  if (miget_real_value_hyperslab(hvol_structures, 
+                                 MI_TYPE_DOUBLE,
+                                 start, 
+                                 count,
                                  structures) < 0) {
     fprintf(stderr, "Could not get hyperslab\n");
   }
