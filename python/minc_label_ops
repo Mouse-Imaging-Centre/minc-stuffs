@@ -28,6 +28,9 @@ if __name__ == "__main__":
     parser.add_option("--remove", dest="remove",
                       help="Label numbers to remove (comma separated, i.e. 3,7,211) - outfile will exclude these labels",
                       type="string")
+    parser.add_option("--mask", dest="mask",
+                      help="Erase all labels where mask >0.5",
+                      type="string")
     parser.add_option("--binarize", help="threshold >0.5 and binarize output", action="store_true", default=False)
     parser.add_option("-v", "--verbose", help='verbose output', action='store_true', default=False)
 
@@ -68,7 +71,7 @@ if __name__ == "__main__":
             outlabels.data[inlabels.data == int(l)] = 0
 
     if options.merge:
-        addlabels = volumeFromFile(options.merge, dtype='ubyte')
+        addlabels = volumeFromFile(options.merge, dtype='ushort', labels=True)
         # should add check to make sure dimensions are the same
 
         # blank one set of labels - i.e. they replace rather than add
@@ -76,7 +79,15 @@ if __name__ == "__main__":
         # now add them together
         outlabels.data[::] = inlabels.data[::] + addlabels.data[::]
         addlabels.closeVolume()
-               
+    
+    if options.mask:
+        maskforlabels = volumeFromFile(options.mask, dtype='ushort')
+        # initially copy over input labels
+        outlabels.data[::] = rint(inlabels.data[::])
+        # then zero out labels where mask > 0.5
+        outlabels.data[maskforlabels.data > 0.5] = 0
+        maskforlabels.closeVolume()
+    
     if options.binarize:
         outlabels.data[outlabels.data > 0.5] = 1
 
