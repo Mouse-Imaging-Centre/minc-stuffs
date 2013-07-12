@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
   misize_t      size_structures[3], size_counts[3];
   unsigned int  start_structures[3], count_structures[3];
   misize_t      start[3], count[3];
-  double        structure_counts[999999], voxel_separations[3];
+  double        voxel_separations[3];
   int           i;
   double        *counts;
   double        *structures;
@@ -96,9 +96,22 @@ int main(int argc, char **argv) {
                                  structures) < 0) {
     fprintf(stderr, "Could not get hyperslab\n");
   }
+  
+  // first calculate the maximum label value, then create an array
+  // that is large enough to hold all possible labels
+  int max_label = -1;
+  for (i=0; i < count[0] * count[1] * count[2]; i++) {
+    if((int)(structures[i] + 0.5) > max_label) {
+      max_label = (int)(structures[i] + 0.5);
+    }
+  }
+  // add one because the array starts at zero, and allocate the volumes array
+  max_label++;
+  double structure_counts[max_label];
+  
 
   /* set the count for all structures to 0 */
-  for (i=0; i < 999998; i++) {
+  for (i=0; i < max_label; i++) {
     structure_counts[i] = 0;
   }
 
@@ -115,7 +128,7 @@ int main(int argc, char **argv) {
      could be: 2,4,8,13. To make sure we don't output information 
      about non-existing labels, the counts are only printed for 
      labels that have 1 count in them */
-  for (i=0; i < 999998; i++) {
+  for (i=0; i < max_label; i++) {
     if (structure_counts[i] != 0) {
       printf("%i, %f\n", i, structure_counts[i]);
     }
