@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
   misize_t      size_structures[3], size_jacobians[3];
   unsigned int  start_structures[3], count_structures[3];
   misize_t      start[3], count[3];
-  double        volumes[256], voxel_separations[3];
+  double        voxel_separations[3];
   int           i;
   double        *jacobians;
   double        *structures;
@@ -98,8 +98,20 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Could not get hyperslab\n");
   }
 
+  // first calculate the maximum label value, then create an array
+  // that is large enough to hold all possible labels
+  int max_label = -1;
+  for (i=0; i < count[0] * count[1] * count[2]; i++) {
+    if((int)(structures[i] + 0.5) > max_label) {
+      max_label = (int)(structures[i] + 0.5);
+    }
+  }
+  // add one because the array starts at zero, and allocate the volumes array
+  max_label++;
+  double volumes[max_label];
+  
   /* set all structure volumes to 0 */
-  for (i=0; i < 255; i++) {
+  for (i=0; i < max_label; i++) {
     volumes[i] = 0;
   }
   
@@ -107,17 +119,14 @@ int main(int argc, char **argv) {
 
   //printf("Computing tissue volumes.\n");
   for (i=0; i < count[0] * count[1] * count[2]; i++) {
-    //printf("%i\n", (int)(structures[i] + 0.5));
     volumes[(int)(structures[i] + 0.5)] += volume * exp(jacobians[i]);
-      
   }
   
-  for (i=0; i < 255; i++) {
+  for (i=0; i < max_label; i++) {
     if (volumes[i] != 0) {
       printf("%i, %f\n", i, volumes[i]);
     }
   }
-    
 
   return(0);
 }
