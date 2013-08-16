@@ -3,7 +3,7 @@
 from pyminc.volumes.factory import *
 from numpy import *
 from optparse import OptionParser
-
+import re as re
 
 
 if __name__ == "__main__":
@@ -20,7 +20,7 @@ if __name__ == "__main__":
                       help="Second label file to whose labels are to be merged with the input_labels",
                       type="string")
     parser.add_option("--remap", dest="remap",
-                      help="Label numbers to replace with new label numbers. For example, to turn label 3 into label 11, it would be --remap 3:11. More than one can be specified at once, separated by commas, i.e. --remap 3:11,21:55.",
+                      help="Label numbers to replace with new label numbers. For example, to turn label 3 into label 11, it would be --remap 3:11. More than one can be specified at once, separated by commas, i.e. --remap 3:11,21:55. It is also possible to specify a range of values to be remapped as follows: to map 3,4,5,6,7, and 8 onto the value 11, specify --remap 3-8:11. This can also be combined: --remap 3-8:11,66:98.",
                       type="string")
     parser.add_option("--select", dest="select",
                       help="Label numbers to select (comma separated, i.e. 3,7,211) - outfile will be just these labels",
@@ -53,11 +53,29 @@ if __name__ == "__main__":
     if options.remap:
         outlabels.data[::] = rint(inlabels.data[::])
         labelpairs = options.remap.split(',')
+        # there are two options for a label pair:
+        #
+        # 1) a 1 to 1 mapping, for example the following will map the
+        #    the value 3 to 11:
+        #    
+        # 3:11
+        #
+        # 2) a many to 1 mapping, for example the following will map the
+        #    values 3,4,5,6, and 7 to the value 11:
+        # 
+        # 3-7:11
+        # 
         for pair in labelpairs:
             labels = pair.split(':')
-            if options.verbose:
+            dash = re.search('-', labels[0])
+            if(dash != None):
+                remaprange = (labels[0]).split('-')
+                for start in range(int(remaprange[0]),int(remaprange[1])+1):
+                    print("Mapping: %d to %d" % (int(start), int(labels[1])))
+                    outlabels.data[inlabels.data == int(start)] = int(labels[1])
+            else:
                 print("Mapping: %d to %d" % (int(labels[0]), int(labels[1])))
-            outlabels.data[inlabels.data == int(labels[0])] = int(labels[1])
+                outlabels.data[inlabels.data == int(labels[0])] = int(labels[1])
     
     if options.select:
         labels = options.select.split(',')
