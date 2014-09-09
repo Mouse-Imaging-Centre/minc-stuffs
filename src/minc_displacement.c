@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#define HAVE_MINC2 1
+
 #include <volume_io.h>
 #include <bicpl.h>
 #include <ParseArgv.h>

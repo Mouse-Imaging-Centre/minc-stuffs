@@ -1,1 +1,3 @@
-News file as required for autoconf. 
+New in Version 1.1.2
+====================
+* minc-stuffs can now be compiled against the minc-toolkit
