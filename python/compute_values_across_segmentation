@@ -23,7 +23,7 @@ if __name__ == "__main__":
         parser.error("Incorrect number of arguments")
     
     inf = volumeFromFile(args[0], dtype="double")
-    atlas = volumeFromFile(args[1], dtype='ubyte')
+    atlas = volumeFromFile(args[1], dtype='ushort')
     output = open(args[2], 'w')
     
     labels = unique(atlas.data)
