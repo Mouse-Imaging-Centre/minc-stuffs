@@ -15,7 +15,7 @@ if __name__ == "__main__":
     if len(args) != 2:
         parser.error("Incorrect number of arguments")
     
-    atlas = volumeFromFile(args[0], dtype='ubyte')
+    atlas = volumeFromFile(args[0], dtype='ushort', labels=True)
     output = open(args[1], 'w')
     
     volumePerVoxel=atlas.separations[0]*atlas.separations[1]*atlas.separations[2]

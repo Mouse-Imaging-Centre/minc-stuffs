@@ -29,9 +29,9 @@ if __name__ == "__main__":
 
     nfiles = len(args)-1
     for i in range( nfiles ):
-        volhandles.append(volumeFromFile(args[i], dtype='ubyte'))
+        volhandles.append(volumeFromFile(args[i], dtype='ushort', labels=True))
 
-    outfile = volumeFromInstance(volhandles[0], outfilename)
+    outfile = volumeFromInstance(volhandles[0], outfilename, dtype='ushort', volumeType='ushort', labels=True)
 
     sliceArray = zeros( (nfiles,
                          volhandles[0].sizes[1],
