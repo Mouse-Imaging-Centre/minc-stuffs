@@ -6,7 +6,7 @@ from Cython.Distutils import build_ext
 
 
 setup(name="python-stuffs",
-      version='0.1.2',
+      version='0.1.3',
       scripts=["python/TFCE", 
 	       "python/smooth_vector", 
 	       "python/measure_xcorr", 
