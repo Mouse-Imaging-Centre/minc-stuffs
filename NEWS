@@ -1,3 +1,7 @@
+New in Version 0.1.4
+====================
+* added rotational_minctracc.py 
+
 New in Version 0.1.3
 ====================
 * compute_values_across_segmentation, volumes_from_labels_only, and voxel_vote now accepts label files with up to 65536 labels (instead of 256)
