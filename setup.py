@@ -6,7 +6,7 @@ from Cython.Distutils import build_ext
 
 
 setup(name="python-stuffs",
-      version='0.1.3',
+      version='0.1.4',
       scripts=["python/TFCE", 
 	       "python/smooth_vector", 
 	       "python/measure_xcorr", 
@@ -15,7 +15,8 @@ setup(name="python-stuffs",
                "python/compute_values_across_segmentation", 
                "python/volumes_from_labels_only", 
                "python/voxel_vote",
-               "python/replace_label_with_nearest_valid_label"],
+               "python/replace_label_with_nearest_valid_label",
+               "python/rotational_minctracc.py"],
       cmdclass = {'build_ext': build_ext},
       ext_modules = [Extension("cython_functions", ["python/cython_functions.pyx"])]
       )
