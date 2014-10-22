@@ -1,3 +1,7 @@
+New in Version 0.1.5
+====================
+* fixes cython/numpy compilation issues with anaconda-2.1.0
+
 New in Version 0.1.4
 ====================
 * added rotational_minctracc.py 
