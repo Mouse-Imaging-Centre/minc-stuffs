@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 import numpy
 
+# setuptools DWIM monkey-patch madness
+# http://mail.python.org/pipermail/distutils-sig/2007-September/thread.html#8204
+import sys
+if 'setuptools.extension' in sys.modules:
+    m = sys.modules['setuptools.extension']
+    m.Extension.__dict__ = m._Extension.__dict__
+
 setup(name="python-stuffs",
-      version='0.1.5',
+      version='0.1.6',
       scripts=["python/TFCE",
                "python/smooth_vector",
                "python/measure_xcorr",

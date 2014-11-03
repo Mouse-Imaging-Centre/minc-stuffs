@@ -1,3 +1,7 @@
+New in Version 0.1.6
+====================
+* fixes egg-info file issues. The minc-stuffs version information will be produced correctly now
+
 New in Version 0.1.5
 ====================
 * fixes cython/numpy compilation issues with anaconda-2.1.0
