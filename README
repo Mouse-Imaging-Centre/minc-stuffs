@@ -25,15 +25,3 @@ In the future, autogen and configure may be updated to automatically run python 
 More information about the package can be found here:
 
 https://wiki.phenogenomics.ca/display/MICePub/minc-stuffs+(formerly+mice-minc-tools)
-
-Known bugs:
------------
-From: http://www.unidata.ucar.edu/support/help/MailArchives/netcdf/msg11875.html
-> In 1.8.11, hdf5 added the capability to use plugins which are dynamically
-> loaded.  If linking with shareable libraries, then the -ldl is already
-> present due to the mechanisms of shareable libraries; however, if using
-> static libraries, the -ldl needs to be added manually which is not
-> currently being done in configure.
-
-after running ./autogen.sh and if you're linking against a static hdf5 library (1.8.11 or later)
-you might have to add -ldl as a flag when linking. This can be done in the configure file
