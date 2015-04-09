@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+from argparse import ArgumentParser
+from pyminc.volumes.factory import *
+import numpy as np
+
+if __name__ == "__main__":
+    
+    description = "updates an image based on prior knowledge coming from a population (and its stdev)"
+
+    parser = ArgumentParser(description=description)
+    
+    # the options
+    parser.add_argument("-p", "--input-precision", dest="precision",
+                        help="The precision of the input data",
+                        type=float, required=True)
+    parser.add_argument("-n", "--population-n", dest="population_n",
+                        help="The number of subjects constituting the population average",
+                        type=int, default=-1)
+
+    # the positional arguments
+    parser.add_argument("input", help="The scan to be modulated")
+    parser.add_argument("popmean", help="The mean of the population")
+    parser.add_argument("popsd", help="The standard deviation of the population")
+    parser.add_argument("output", help="The output filename")
+    args = parser.parse_args()
+
+    # open volumes
+    inputVol = volumeFromFile(args.input, dtype="double")
+    popmeanVol = volumeFromFile(args.popmean, dtype="double")
+    popsdVol = volumeFromFile(args.popsd, dtype="double")
+    outVol = volumeLikeFile(args.input, args.output, volumeType="short", dtype="double")
+
+    ### real work begins here ###
+    outVol.data = inputVol.data*args.precision + ((args.population_n / popsdVol.data)*popmeanVol.data) / \
+        (args.precision + (args.population_n/ popsdVol.data))
+    
+
+    # write out and close all volumes
+    inputVol.closeVolume()
+    popmeanVol.closeVolume()
+    popsdVol.closeVolume()
+
+    outVol.writeFile()
+    outVol.closeVolume()
+
+    
