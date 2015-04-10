@@ -35,7 +35,7 @@ if __name__ == "__main__":
     outVol = volumeLikeFile(args.input, args.output, volumeType="short", dtype="double")
 
     ### real work begins here ###
-    outVol.data = inputVol.data*args.precision + ((args.population_n / popsdVol.data)*popmeanVol.data) / \
+    outVol.data = ((inputVol.data*args.precision) + ((args.population_n / popsdVol.data)*popmeanVol.data)) / \
         (args.precision + (args.population_n/ popsdVol.data))
     
     if args.weights is not None:
