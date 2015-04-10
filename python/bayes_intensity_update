@@ -12,11 +12,14 @@ if __name__ == "__main__":
     
     # the options
     parser.add_argument("-p", "--input-precision", dest="precision",
-                        help="The precision of the input data",
+                        help="The precision of the input data. A single number that serves as a weighting term for how much credibility to give to the input scan.",
                         type=float, required=True)
     parser.add_argument("-n", "--population-n", dest="population_n",
-                        help="The number of subjects constituting the population average",
+                        help="The number of subjects constituting the population average. This serves as a weighting term for how much credibility to give the population data.",
                         type=int, default=-1)
+    parser.add_argument("-w", "--output-weight", dest="weights",
+                        help="Output the relative weights of input and population to file; the output will range between 0 1, with 1 representing the input scan uniquely contributing to the output, 0 the population average uniquely contributing to the output. Specify the filename that is to contain the weights as an argument to this option",
+                        default=None)
 
     # the positional arguments
     parser.add_argument("input", help="The scan to be modulated")
@@ -35,6 +38,11 @@ if __name__ == "__main__":
     outVol.data = inputVol.data*args.precision + ((args.population_n / popsdVol.data)*popmeanVol.data) / \
         (args.precision + (args.population_n/ popsdVol.data))
     
+    if args.weights is not None:
+        weightsVol = volumeLikeFile(args.input, args.weights, volumeType="short", dtype="double")
+        weightsVol.data = args.precision / (args.precision + (args.population_n / popsdVol.data))
+        weightsVol.writeFile()
+        weightsVol.closeVolume()
 
     # write out and close all volumes
     inputVol.closeVolume()
