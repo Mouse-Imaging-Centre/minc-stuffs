@@ -1,6 +1,7 @@
 New in Version 0.1.7
 ====================
 * added vtk_meshconvert.py a program that can be used to convert between BIC obj, stl and vtk meshes
+* added bayes_intensity_update a program that updates an image based on prior knowledge coming from a population (and its stdev)
 
 New in Version 0.1.6
 ====================
