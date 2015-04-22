@@ -3,6 +3,14 @@ minc-stuffs is repository that houses scripts and bits of code that are useful f
 This code is licensed under the 3-clause BSD License. 
 http://opensource.org/licenses/BSD-3-Clause
 
+Installing from github:
+-----------------------
+`git clone --recursive https://github.com/Mouse-Imaging-Centre/minc-stuffs.git`
+or
+`git clone https://github.com/Mouse-Imaging-Centre/minc-stuffs.git
+cd minc-stuffs
+git submodule update --init --recursive`
+
 To build and install the perl and src code:
 ------------------------------------------
 ./autogen.sh
