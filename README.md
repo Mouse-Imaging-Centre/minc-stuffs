@@ -7,13 +7,13 @@ Installing from github:
 -----------------------
 <pre><code>
 git clone --recursive https://github.com/Mouse-Imaging-Centre/minc-stuffs.git
-<\pre><\code>
+</pre></code>
 or
 <pre><code>
 git clone https://github.com/Mouse-Imaging-Centre/minc-stuffs.git
 cd minc-stuffs
 git submodule update --init --recursive
-<\pre><\code>
+</pre></code>
 
 To build and install the perl and src code:
 ------------------------------------------
