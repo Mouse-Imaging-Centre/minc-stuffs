@@ -5,11 +5,15 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Installing from github:
 -----------------------
-`git clone --recursive https://github.com/Mouse-Imaging-Centre/minc-stuffs.git`
+<pre><code>
+git clone --recursive https://github.com/Mouse-Imaging-Centre/minc-stuffs.git
+<\pre><\code>
 or
-`git clone https://github.com/Mouse-Imaging-Centre/minc-stuffs.git
+<pre><code>
+git clone https://github.com/Mouse-Imaging-Centre/minc-stuffs.git
 cd minc-stuffs
-git submodule update --init --recursive`
+git submodule update --init --recursive
+<\pre><\code>
 
 To build and install the perl and src code:
 ------------------------------------------
