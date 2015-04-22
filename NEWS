@@ -1,3 +1,7 @@
+New in Version 0.1.7
+====================
+* added vtk_meshconvert.py a program that can be used to convert between BIC obj, stl and vtk meshes
+
 New in Version 0.1.6
 ====================
 * fixes egg-info file issues. The minc-stuffs version information will be produced correctly now

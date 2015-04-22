@@ -13,7 +13,7 @@ if 'setuptools.extension' in sys.modules:
     m.Extension.__dict__ = m._Extension.__dict__
 
 setup(name="python-stuffs",
-      version='0.1.6',
+      version='0.1.7',
       scripts=["python/TFCE",
                "python/smooth_vector",
                "python/measure_xcorr",
