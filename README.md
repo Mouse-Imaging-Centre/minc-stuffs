@@ -24,14 +24,20 @@ git submodule update --init --recursive
 
 To build and install the perl and src code:
 ------------------------------------------
+<pre><code>
 ./autogen.sh
 ./configure
 make
 make install
+</pre></code>
+
 
 To build and install the python scripts:
 ---------------------------------------
+<pre><code>
 python setup.py install
+</pre></code>
+
 
 Installation Notes:
 -------------------
