@@ -1,3 +1,7 @@
+New in Version 0.1.8
+====================
+* clobber option in pmincaverage is activated
+
 New in Version 0.1.7
 ====================
 * added vtk_meshconvert.py a program that can be used to convert between BIC obj, stl and vtk meshes
