@@ -1,3 +1,8 @@
+New in Version 0.1.9
+====================
+* smooth_vector: provide useful output when the input does not exist, or is broken
+* minc_displacement: if the output file can not be written to disk, exit with 1 (instead of 0...)
+
 New in Version 0.1.8
 ====================
 * clobber option in pmincaverage is activated
