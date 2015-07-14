@@ -7,9 +7,11 @@
 #
 # Created Aug 26, 2004
 
-from sys import argv
+import sys
 import string
 import os, tempfile
+import subprocess
+import re
 import exceptions
 from optparse import OptionParser, Option, OptionValueError
 
@@ -58,7 +60,15 @@ def process_volume(input, output, options):
 
 
 def get_vector_length(input):
-
+    if not os.path.exists(input):
+        print "\nError: input file does not exist: ", input, " Exiting...\n"
+        sys.exit(1)
+    # sometimes the file exists, but the MINC file has not been 
+    # properly written out to disk, check for this:
+    mincinfoCmd = subprocess.Popen(["mincinfo", input], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
+    if re.search("Unable to open file", mincinfoCmd.stdout.read()):
+        print "\nError: can not read input file: ",  input, "\n"
+        sys.exit(1)
     out = os.popen('mincinfo -dimlength vector_dimension %s' % input)
     length = int(out.readline())
     out.close()
