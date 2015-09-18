@@ -23,6 +23,16 @@ class FatalError(exceptions.Exception):
     def __init__(self,args=None):
         self.msg = args
 
+#----------------------------------------------------------------------------
+def run_command_and_check_return(cmd):
+    """
+    A little wrapper around os.system such that an error
+    can be raised when one of the command line programs fail.
+    """
+    if os.system(cmd) != 0:
+        print "\nError: Could not perform command: %s\n" % cmd
+        raise SystemExit
+
 
 #----------------------------------------------------------------------
 
@@ -38,7 +48,7 @@ def process_volume(input, output, options):
         smoothed = [tempfile.mktemp(".mnc") for i in range(n)]
 
     for i in range(n):
-        os.system("mincreshape -clobber -dimrange vector_dimension=%i %s %s" % \
+        run_command_and_check_return("mincreshape -clobber -dimrange vector_dimension=%i %s %s" % \
                (i, input, working))
 
         if options.smoothing == 'spline':
@@ -47,15 +57,15 @@ def process_volume(input, output, options):
             else:
                 mask_option = ''
         
-                os.system("spline_smooth -distance %f -b_spline %s %s %s" %\
+                run_command_and_check_return("spline_smooth -distance %f -b_spline %s %s %s" %\
                           (options.distance, mask_option, working, smoothed[i]))
         else:
-            os.system("mincblur -fwhm %f %s %s" % \
+            run_command_and_check_return("mincblur -fwhm %f %s %s" % \
                       (options.fwhm, working, smooth_base[i]))
 
-    os.system("mincconcat -clobber -concat_dimension vector_dimension %s %s" % \
+    run_command_and_check_return("mincconcat -clobber -concat_dimension vector_dimension %s %s" % \
            (string.join(smoothed), output))
-    os.system("rm -f %s %s" % (string.join(smoothed), working))
+    run_command_and_check_return("rm -f %s %s" % (string.join(smoothed), working))
 
 
 
@@ -124,4 +134,9 @@ by spline approximation
         raise SystemExit
 
 
-    process_volume(input, output, options)
+    try:
+        process_volume(input, output, options)
+    except SystemExit:
+        # one of the system calls failed, exit with a non zero return
+        sys.exit(1)
+
