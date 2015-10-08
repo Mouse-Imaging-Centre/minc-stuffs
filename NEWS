@@ -1,3 +1,25 @@
+New in Version 0.1.11
+=====================
+* turned off multiprocessing in pmincaverage, because it sometimes crashes on compressed MINC files
+
+New in Version 0.1.10
+=====================
+* more updates to smooth_vector: exists with a non-zero return (1) if the output file can not be created
+
+New in Version 0.1.9
+====================
+* smooth_vector: provide useful output when the input does not exist, or is broken
+* minc_displacement: if the output file can not be written to disk, exit with 1 (instead of 0...)
+
+New in Version 0.1.8
+====================
+* clobber option in pmincaverage is activated
+
+New in Version 0.1.7
+====================
+* added vtk_meshconvert.py a program that can be used to convert between BIC obj, stl and vtk meshes
+* added bayes_intensity_update a program that updates an image based on prior knowledge coming from a population (and its stdev)
+
 New in Version 0.1.6
 ====================
 * fixes egg-info file issues. The minc-stuffs version information will be produced correctly now

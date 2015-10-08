@@ -13,7 +13,7 @@ if 'setuptools.extension' in sys.modules:
     m.Extension.__dict__ = m._Extension.__dict__
 
 setup(name="python-stuffs",
-      version='0.1.6',
+      version='0.1.11',
       scripts=["python/TFCE",
                "python/smooth_vector",
                "python/measure_xcorr",
@@ -23,7 +23,8 @@ setup(name="python-stuffs",
                "python/volumes_from_labels_only",
                "python/voxel_vote",
                "python/replace_label_with_nearest_valid_label",
-               "python/rotational_minctracc.py"],
+               "python/rotational_minctracc.py",
+               "minc-scripts-jscholz/vtk_meshconvert.py"],
       cmdclass = {'build_ext': build_ext},
       ext_modules = [Extension("cython_functions", ["python/cython_functions.pyx"], include_dirs=[numpy.get_include()])]
       )

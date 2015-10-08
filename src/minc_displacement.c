@@ -157,7 +157,10 @@ int main(int argc, char *argv[]) {
 
   printf("Outputting volume.\n");
 
-  output_volume(outfile, MI_ORIGINAL_TYPE, TRUE, 0.0, 0.0, new_grid, arg_string, NULL);
+  if(output_volume(outfile, MI_ORIGINAL_TYPE, TRUE, 0.0, 0.0, new_grid, arg_string, NULL) != VIO_OK ) { 
+    return( 1 );
+  }
+
 
   return(0);
 
