@@ -107,7 +107,7 @@ if __name__ == "__main__":
         maskforlabels.closeVolume()
     
     if options.binarize:
-        outlabels.data[outlabels.data > 0.5] = 1
+        outlabels.data[inlabels.data > 0.5] = 1
 
     # write to file
     outlabels.writeFile()

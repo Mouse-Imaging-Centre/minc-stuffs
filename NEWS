@@ -1,3 +1,7 @@
+New in Version 0.1.11
+=====================
+* turned off multiprocessing in pmincaverage, because it sometimes crashes on compressed MINC files
+
 New in Version 0.1.10
 =====================
 * more updates to smooth_vector: exists with a non-zero return (1) if the output file can not be created
