@@ -78,18 +78,18 @@ def resample_volume(source, target, transform):
                           % (transform, target, source, tmp_resampled)).split())
     return tmp_resampled
 
-def minctracc(source, target, mask, stepsize, wtranslations):
+def minctracc(source, target, mask, stepsize, wtranslations, simplex):
     wtrans_decomp = array(wtranslations.split(',')).astype("float")
     tmp_transform = get_tempfile('.xfm')
     if mask is not None:
-        cmd = ("minctracc -identity -lsq6 -xcorr -step %s %s %s %s %s %s -source_mask %s -model_mask %s -w_translations %s %s %s"
-                % (stepsize, stepsize, stepsize, source, target, tmp_transform, mask, mask,
+        cmd = ("minctracc -identity -lsq6 -xcorr -simplex %s -step %s %s %s %s %s %s -source_mask %s -model_mask %s -w_translations %s %s %s"
+                % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform, mask, mask,
                    wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
         print(cmd)
         subprocess.check_call(cmd.split())
     else:
-        cmd = ("minctracc -identity -lsq6 -xcorr -step %s %s %s %s %s %s -w_translations %s %s %s"
-                 % (stepsize, stepsize, stepsize, source, target, tmp_transform,
+        cmd = ("minctracc -identity -lsq6 -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s"
+                 % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform,
                     wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
         print(cmd)
         subprocess.check_call(cmd.split())
@@ -100,7 +100,7 @@ def concat_transforms(t1, t2):
     subprocess.check_call(("xfmconcat %s %s %s" % (t1, t2, tmp_transform)).split())
     return tmp_transform
               
-def loop_rotations(stepsize, source, target, mask, start=50, interval=10, wtranslations="0.2,0.2,0.2"):
+def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, wtranslations="0.2,0.2,0.2"):
 
     # get the centre of gravity for both volumes
     cog1 = get_centre_of_gravity(source)
@@ -121,7 +121,8 @@ def loop_rotations(stepsize, source, target, mask, start=50, interval=10, wtrans
                 init_transform = create_transform(cogdiff, x, y, z, cog1)
                 #init_resampled = resample_volume(source,target, init_transform)
                 init_resampled = resample_volume(source ,target, init_transform)
-                transform = minctracc(init_resampled, target, mask, stepsize, wtranslations)
+                transform = minctracc(init_resampled, target, mask, stepsize=stepsize,
+                                      wtranslations=wtranslations, simplex=simplex)
                 resampled = resample_volume(init_resampled, target, transform)
                 xcorr = compute_xcorr(resampled, targetvol, maskvol)
                 if isnan(xcorr):
@@ -186,6 +187,7 @@ if __name__ == "__main__":
     parser.add_argument("-w", "--wtranslations", dest="wtranslations",
                       help="Comma separated list of optimization weights of translations in x, y, z for minctracc",
                       type=str, default="0.2,0.2,0.2")
+    parser.add_argument("--simplex", dest="simplex", help="Radius of minctracc simplex volume", type=float, default=1)
     parser.add_argument("source", help="", type=str, metavar="source.mnc")
     parser.add_argument("target", help="", type=str, metavar="target.mnc")
     parser.add_argument("output_xfm", help="", type=str, metavar="output.xfm")
@@ -212,11 +214,11 @@ if __name__ == "__main__":
         if options.mask:
             options.mask = downsample(options.mask, options.resamplestepsize)
     if options.mask:
-        results = loop_rotations(options.registrationstepsize, source, target, options.mask, options.range,
-                                 options.interval, options.wtranslations)
+        results = loop_rotations(options.registrationstepsize, source, target, options.mask, start=options.range,
+                                 interval=options.interval, wtranslations=options.wtranslations, simplex=options.simplex)
     else:
-        results = loop_rotations(options.registrationstepsize, source, target, None, options.range,
-                                 options.interval, options.wtranslations)
+        results = loop_rotations(options.registrationstepsize, source, target, None, start=options.range,
+                                 interval=options.interval, wtranslations=options.wtranslations, simplex=options.simplex)
     
     print(results)
     subprocess.check_call(("cp %s %s" % (results[-1]["transform"], output_xfm)).split())
