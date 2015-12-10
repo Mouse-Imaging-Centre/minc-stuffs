@@ -9,7 +9,7 @@ use Getopt::Tabular;
 use MNI::PathUtilities qw(split_path);
 use FindBin;
 
-my $usage = "$0  -x x_wpos  -y y_wpos  -z z_wpos  -final-nlin anatomical_minc  -jacobian stats_minc";
+my $usage = "$0  -x x_wpos  -y y_wpos  -z z_wpos  -final-nlin anatomical_minc  -jacobian stats_minc\n";
 
 my $version = 0.1;
 my $help = <<HELP;
@@ -24,15 +24,13 @@ Getopt::Tabular::SetHelp($help, $usage);
 
 RegisterPrograms(["print_world_value", "pwd", "mincstats", "mincinfo", "identify"]);
 
-# my $programname = $0;
-# my $programdirname = dirname($programname);
-# my $dirname;
-# Spawn(["pwd"], stdout=>\$dirname);
-# chomp($dirname);
-# if($programdirname eq '.')
-# {
-# 	$programdirname = $dirname;
-# }
+sub system_call_error_check {
+    my $func_name =  (caller(0))[3];
+    my $full_command = shift or die "\nNo command provided  for the function $func_name\n";
+    
+    system($full_command) == 0
+        or die "\nError: system $full_command failed: $?\n";
+}
 
 my $x_pos = undef;
 my $y_pos = undef;
@@ -43,7 +41,7 @@ my $jacobian = undef;
 my $image_dir = undef;
 my $outputfile = "ray_trace_stats.png";
 my $caption_colorbar = "t-statistic";
-my $brain_surface = "$FindBin::Bin/../share/mice-minc-tools/reference_object.obj";
+my $brain_surface = "$FindBin::Bin/../share/minc-stuffs/reference_object.obj";
 my $fdr_threshold = undef;
 my $positive_max_peak = undef;
 my $negative_max_peak = undef;
@@ -56,120 +54,114 @@ my $intensity_image_min = -1000;
 my $insert_brain_inset = 1;
 my $image_width = 800;
 my $image_height = 800;
+my $flip_images = 0;
 
 my @arg_table =
-	(	["Execution control - Required ", "section"],
-		["-x", "float", 1, \$x_pos,
-			"Specify x in world coordinates."],
-		["-y", "float", 1, \$y_pos,
-			"Specify y in world coordinates."],
-		["-z", "float", 1, \$z_pos,
-			"Specify z in world coordinates."],
-		["-final-nlin", "string", 1, \$final_nlin,
-	  	"Specify the anatomical file."],
-	  ["-jacobian", "string", 1, \$jacobian,
-	  	"Specify the statistics file."],
-					
-		["Execution control - Non - Required ", "section"],
-		["-fdr", "float", 1, \$fdr_threshold,
-			"Specify the fdr threshold."],
-		["-value-peak", "float", 1, \$value_peak,
-			"Specify the value at the given coordinate."],
-		["-imagedir", "string", 1, \$image_dir,
-	  	"Specify the directory where the images go."],
-	  ["-outputfile", "string", 1, \$outputfile,
-	  	"Specify the name of the output file."],
-	  ["-brainsurface", "string", 1, \$brain_surface,
-	  	"Specify the name of the obj file of the brain surface."],
-	  ["-positive-max", "float", 1, \$positive_max_peak,
-			"Specify the greatest t- or f-statistic."],
-		["-negative-min", "float", 1, \$negative_max_peak,
-			"Specify the smallest t- or f-statistic."],
-	 	["-show-pos-and-neg|-no-show-pos-and-neg", "boolean", 0, \$show_both_sides,
-			"Show both the positive and negative statistics in the image."],
-		["-slicedirection", "string", 1, \$slice_direction,
-	  	"Specify the slice direction, transverse, coronal or sagittal."],
-	  ["-remove-temp|-no-remove-temp", "boolean", 0, \$remove_temp,
-			"Remove the temp files created during the process."],
-		["-caption", "string", 1, \$caption_colorbar,
-	  	"Specify the caption for the color bar next to the image."],
-	  ["-image-max", "float", 1, \$intensity_image_max,
-			"Specify the image intensity maximum for the ray_trace command."],
-		["-image-min", "float", 1, \$intensity_image_min,
-			"Specify the image intensity minimum for the ray_trace command."],
-		["-place-inset|-no-place-inset", "boolean", 0, \$insert_brain_inset,
-			"Place the small 3D brain inset in the image."],
-		["-image-width", "float", 1, \$image_width,
-			"Specify the width of the output image."],
-		["-image-height", "float", 1, \$image_height,
-			"Specify the height of the output image."],
-	  );
+  ( ["Execution control - Required ", "section"],
+    ["-x", "float", 1, \$x_pos,
+      "Specify x in world coordinates."],
+    ["-y", "float", 1, \$y_pos,
+      "Specify y in world coordinates."],
+    ["-z", "float", 1, \$z_pos,
+      "Specify z in world coordinates."],
+    ["-final-nlin", "string", 1, \$final_nlin,
+      "Specify the anatomical file."],
+    ["-jacobian", "string", 1, \$jacobian,
+      "Specify the statistics file."],
+          
+    ["Execution control - Non - Required ", "section"],
+    ["-fdr", "float", 1, \$fdr_threshold,
+      "Specify the fdr threshold."],
+    ["-value-peak", "float", 1, \$value_peak,
+      "Specify the value at the given coordinate."],
+    ["-imagedir", "string", 1, \$image_dir,
+      "Specify the directory where the images go."],
+    ["-outputfile", "string", 1, \$outputfile,
+      "Specify the name of the output file."],
+    ["-brainsurface", "string", 1, \$brain_surface,
+      "Specify the name of the obj file of the brain surface."],
+    ["-positive-max", "float", 1, \$positive_max_peak,
+      "Specify the greatest t- or f-statistic."],
+    ["-negative-min", "float", 1, \$negative_max_peak,
+      "Specify the smallest t-statistic."],
+    ["-show-pos-and-neg|-no-show-pos-and-neg", "boolean", 0, \$show_both_sides,
+      "Show both the positive and negative statistics in the image."],
+    ["-slicedirection", "string", 1, \$slice_direction,
+      "Specify the slice direction, transverse, coronal or sagittal."],
+    ["-remove-temp|-no-remove-temp", "boolean", 0, \$remove_temp,
+      "Remove the temp files created during the process."],
+    ["-caption", "string", 1, \$caption_colorbar,
+      "Specify the caption for the color bar next to the image."],
+    ["-image-max", "float", 1, \$intensity_image_max,
+      "Specify the image intensity maximum for the ray_trace command."],
+    ["-image-min", "float", 1, \$intensity_image_min,
+      "Specify the image intensity minimum for the ray_trace command."],
+    ["-place-inset|-no-place-inset", "boolean", 0, \$insert_brain_inset,
+      "Place the small 3D brain inset in the image."],
+    ["-image-width", "float", 1, \$image_width,
+      "Specify the width of the output image."],
+    ["-image-height", "float", 1, \$image_height,
+      "Specify the height of the output image."],
+    ["-flip-images|-no-flip-images", "boolean", 0, \$flip_images,
+      "Some versions of the minc tools flip images 180 degrees. Use this option to compensate for the flip (but please check your input files and the images created to make sure left is left and right is right)."],
+    );
 GetOptions(\@arg_table, \@ARGV) or die "\n";
 
-if(!defined($x_pos) or !defined($y_pos) or !defined($z_pos))
-{
-	die "\n$usage\nError: specify the x,y,z world coordinates.\n";
+if(!defined($x_pos) or !defined($y_pos) or !defined($z_pos)) {
+  die "\n$usage\nError: specify the x,y,z world coordinates.\n";
 }
 
-if(!defined($final_nlin))
-{
-	die "\n$usage\nError: specify the anatomical minc file.\n";
+if(!defined($final_nlin)) {
+  die "\n$usage\nError: specify the anatomical minc file.\n";
 }
 
-if(!defined($jacobian))
-{
-	die "\n$usage\nError: specify the statistics minc file.\n";
+if(!defined($jacobian)) {
+  die "\n$usage\nError: specify the statistics minc file.\n";
 }
 
 #retrieve the statistics value from the coordinate if not specified
-if(!defined($value_peak))
-{
-	Spawn(["print_world_value", "${jacobian}", "${x_pos}", "${y_pos}", "${z_pos}"],
-				stdout=>\$value_peak);
-	chomp($value_peak);
+if(!defined($value_peak)) {
+  Spawn(["print_world_value", "${jacobian}", "${x_pos}", "${y_pos}", "${z_pos}"],
+        stdout=>\$value_peak);
+  chomp($value_peak);
 }
 
-if(!defined($fdr_threshold))
-{
-	if(abs($value_peak) < 4)
-	{
-		$fdr_threshold = abs($value_peak) - 0.5;
-	}
-	else
-	{
-		$fdr_threshold = 4;
-	}
+if(!defined($fdr_threshold)) {
+  if(abs($value_peak) < 4)
+  {
+    $fdr_threshold = abs($value_peak) - 0.5;
+  }
+  else
+  {
+    $fdr_threshold = 4;
+  }
 }
 
-if(!defined($image_dir))
-{
-	Spawn(["pwd"], stdout=>\$image_dir);
-	chomp($image_dir);
+if(!defined($image_dir)) {
+  Spawn(["pwd"], stdout=>\$image_dir);
+  chomp($image_dir);
 }
 
-if(!defined($positive_max_peak))
-{
-	Spawn(["mincstats", "-quiet", "-max", "${jacobian}"],
-				stdout=>\$positive_max_peak);
-	chomp($positive_max_peak);
+if(!defined($positive_max_peak)) {
+  Spawn(["mincstats", "-quiet", "-max", "${jacobian}"],
+        stdout=>\$positive_max_peak);
+  chomp($positive_max_peak);
 }
 
-if(!defined($negative_max_peak))
-{
-	Spawn(["mincstats", "-quiet", "-min", "${jacobian}"],
-				stdout=>\$negative_max_peak);
-	chomp($negative_max_peak);
+if(!defined($negative_max_peak)) {
+  Spawn(["mincstats", "-quiet", "-min", "${jacobian}"],
+        stdout=>\$negative_max_peak);
+  chomp($negative_max_peak);
 }
 
 #set to default transverse if other two are not (or incorrectly) set
-if(!($slice_direction eq "coronal") and !($slice_direction eq "sagittal") and !($slice_direction eq "transverse"))
-{
-	print "\n\nUnknown slice direction: ${slice_direction}, direction will be transverse.\n\n";
-	$slice_direction = "transverse";
+if(!($slice_direction eq "coronal") and !($slice_direction eq "sagittal") and !($slice_direction eq "transverse")) {
+  print "\n\nUnknown slice direction: ${slice_direction}, direction will be transverse.\n\n";
+  $slice_direction = "transverse";
 }
 
 my $tempdir = "${image_dir}/tmp_raytrace";
-system("mkdir -p $tempdir") unless (-d $tempdir);
+system_call_error_check("mkdir -p $tempdir") unless (-d $tempdir);
 
 
 # Given the peak, write a lines object that will draw a crosshair on the peak
@@ -212,56 +204,44 @@ open(OPENCROSS, "> $crosshairobject");
 print OPENCROSS "L ", $max_step_size, " ", 4*($pixelradius - $gap), "\n\n";
 
 # print left horizontal
-if($slice_direction eq "coronal" or $slice_direction eq "transverse")
-{
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos - ${i} * 0.5 * $x_step_size, " ", $y_pos, " ", $z_pos, "\n";
-	}
-	# print right horizontal
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos + ${i} * 0.5 * $x_step_size, " ", $y_pos, " ", $z_pos, "\n";
-	}
+if($slice_direction eq "coronal" or $slice_direction eq "transverse") {
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos - ${i} * 0.5 * $x_step_size, " ", $y_pos, " ", $z_pos, "\n";
+  }
+  # print right horizontal
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos + ${i} * 0.5 * $x_step_size, " ", $y_pos, " ", $z_pos, "\n";
+  }
 }
-else # sagittal
-{
-	# print left horizontal
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos - ${i} * 0.5 * $z_step_size, "\n";
-	}
-	# print right horizontal
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos + ${i} * 0.5 * $z_step_size, "\n";
-	}
+else { # sagittal
+  # print left horizontal
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos - ${i} * 0.5 * $z_step_size, "\n";
+  }
+  # print right horizontal
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos + ${i} * 0.5 * $z_step_size, "\n";
+  }
 }
-if($slice_direction eq "coronal")
-{
-	## print bottom vertical
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos - ${i} * 0.5 * $z_step_size, "\n";
-	}
-	# print top vertical
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos + ${i} * 0.5 * $z_step_size, "\n";
-	}
+if($slice_direction eq "coronal") {
+  ## print bottom vertical
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos - ${i} * 0.5 * $z_step_size, "\n";
+  }
+  # print top vertical
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos, " ", $y_pos, " ", $z_pos + ${i} * 0.5 * $z_step_size, "\n";
+  }
 }
-else #transverse or sagittal
-{
-	## print bottom vertical
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos, " ", $y_pos - ${i} * 0.5 * $y_step_size, " ", $z_pos, "\n";
-	}
-	# print top vertical
-	for($i = $gap+1; $i <= $pixelradius; $i++)
-	{
-		print OPENCROSS $x_pos, " ", $y_pos + ${i} * 0.5 * $y_step_size, " ", $z_pos, "\n";
-	}
+else { #transverse or sagittal
+  ## print bottom vertical
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos, " ", $y_pos - ${i} * 0.5 * $y_step_size, " ", $z_pos, "\n";
+  }
+  # print top vertical
+  for($i = $gap+1; $i <= $pixelradius; $i++) {
+    print OPENCROSS $x_pos, " ", $y_pos + ${i} * 0.5 * $y_step_size, " ", $z_pos, "\n";
+  }
 }
 print OPENCROSS "\n";
 # print the number of lines
@@ -271,13 +251,11 @@ print OPENCROSS "0 0 1 0 0.75 \n\n";
 #print the number of points in each line
 print OPENCROSS ${pixelradius}-$gap, " ",${pixelradius}-$gap, " ",${pixelradius}-$gap, " ",${pixelradius}-$gap, "\n\n";
 #print the indices for the points in the lines
-for($i = 0; $i <= 3; $i++)
-{
-	for($j = 0; $j <= ${pixelradius} - ($gap+1); $j++)
-	{
-		print OPENCROSS $i*(${pixelradius}-$gap) + $j, " ";
-	}
-	print OPENCROSS "\n";
+for($i = 0; $i <= 3; $i++) {
+  for($j = 0; $j <= ${pixelradius} - ($gap+1); $j++) {
+    print OPENCROSS $i*(${pixelradius}-$gap) + $j, " ";
+  }
+  print OPENCROSS "\n";
 }
 print OPENCROSS "\n";
 close(OPENCROSS);
@@ -287,20 +265,17 @@ close(OPENCROSS);
 
 #make the slice for the brain and jacobian:
 my $sliceobject;
-if($slice_direction eq "coronal")
-{
-	$sliceobject = "${tempdir}/slice_obj_Y_${y_pos}.obj";
-	system("make_slice ${final_nlin} ${sliceobject} y w ${y_pos}");
+if($slice_direction eq "coronal") {
+  $sliceobject = "${tempdir}/slice_obj_Y_${y_pos}.obj";
+  system_call_error_check("make_slice ${final_nlin} ${sliceobject} y w ${y_pos}");
 }
-elsif($slice_direction eq "sagittal")
-{
-	$sliceobject = "${tempdir}/slice_obj_X_${z_pos}.obj";
-	system("make_slice ${final_nlin} ${sliceobject} x w ${x_pos}");
+elsif($slice_direction eq "sagittal") {
+  $sliceobject = "${tempdir}/slice_obj_X_${z_pos}.obj";
+  system_call_error_check("make_slice ${final_nlin} ${sliceobject} x w ${x_pos}");
 }
-else #transverse
-{
-	$sliceobject = "${tempdir}/slice_obj_Z_${z_pos}.obj";
-	system("make_slice ${final_nlin} ${sliceobject} z w ${z_pos}");
+else { #transverse
+  $sliceobject = "${tempdir}/slice_obj_Z_${z_pos}.obj";
+  system_call_error_check("make_slice ${final_nlin} ${sliceobject} z w ${z_pos}");
 }
 
 push @temp_files, $sliceobject;
@@ -311,83 +286,74 @@ my $rgboutputfile = "${tempdir}/${base}.rgb";
 push @temp_files, $rgboutputfile;
 
 my $inset = $rgboutputfile;
-if($insert_brain_inset)
-{
-	$inset =~ s/.rgb/_inset.rgb/;
-	push @temp_files, $inset;
-	#ray_trace the little inset brain with the slice
-	if($slice_direction eq "sagittal")
-	{
-		system("ray_trace -output ${inset} -under black -gray -1 1 ${final_nlin} 0 1 ${sliceobject} ${brain_surface} -size 150 60 -bg white -eye  0.0164547 0.438671 19.7744 -view -0.00420514 0.0029151 -0.999987 -0.999986 0.003104 0.00421419 -window_width 15.908 -perspective_distance 10.7091 -sup 3 -directional -1 0 -1 1 1 1 -directional 1 -0.5 1 1 1 1 -sup 3")
-	}
-	else
-	{
-		system("ray_trace -output ${inset} -under black -gray -1 1 ${final_nlin} 0 1 ${sliceobject} ${brain_surface} -size 150 60 -bg white -eye  18.728 0.91025 3.03289 -view -0.988564 0.00157479 -0.150795 -0.150791 0.00252284 0.988562 -window_width 14.9506 -perspective_distance 10.9706 -sup 3 -directional -1 0 -1 1 1 1 -directional 1 -0.5 1 1 1 1 -sup 3")
-	}
+$inset =~ s/.rgb/_inset_temp.rgb/;
+push @temp_files, $inset;
+
+if($slice_direction eq "sagittal") {
+  system("ray_trace -output ${inset} -under black -gray -1 1 ${final_nlin} 0 1 ${sliceobject} ${brain_surface} -size 150 60 -bg white -eye  0.0164547 0.438671 19.7744 -view -0.00420514 0.0029151 -0.999987 -0.999986 0.003104 0.00421419 -window_width 15.908 -perspective_distance 10.7091 -sup 3 -directional -1 0 -1 1 1 1 -directional 1 -0.5 1 1 1 1 -sup 3")
+}
+else {
+  system("ray_trace -output ${inset} -under black -gray -1 1 ${final_nlin} 0 1 ${sliceobject} ${brain_surface} -size 150 60 -bg white -eye  18.728 0.91025 3.03289 -view -0.988564 0.00157479 -0.150795 -0.150791 0.00252284 0.988562 -window_width 14.9506 -perspective_distance 10.9706 -sup 3 -directional -1 0 -1 1 1 1 -directional 1 -0.5 1 1 1 1 -sup 3")
+}
+
+# due to changes in certain versions of the minc tools, ray_trace might produce flipped images
+my $inset_final = $inset;
+if($flip_images){
+  $inset_final =~ s/.rgb/_final.png/;
+  push @temp_files, $inset_final;
+  system_call_error_check("convert ${inset} -flip ${inset_final}");
 }
 
 my $spectral_min;
 my $spectral_max;
 
-if(! $show_both_sides)
-{
-	if($value_peak > 0)
-	{
-		$spectral_min = abs($fdr_threshold);
-		$spectral_max = $positive_max_peak;
-	}
-	else
-	{
-		$spectral_min = -abs($fdr_threshold);
-		$spectral_max = $negative_max_peak;
-	}
-	#ray_trace
-	if($slice_direction eq "coronal")
-	{
-		system("ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} -nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 -under transparent -spectral ${spectral_min} ${spectral_max} ${jacobian} 0 0.4 ${sliceobject} -size ${image_width} ${image_height} -bg black -crop -back -sup 3");
-	}
-	elsif($slice_direction eq "sagittal")
-	{
-		system("ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} -nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 -under transparent -spectral ${spectral_min} ${spectral_max} ${jacobian} 0 0.4 ${sliceobject} -size ${image_width} ${image_height} -bg black -crop -right -sup 3");
-	}
-	else #transverse 
-	{
-		system("ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} -nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 -under transparent -spectral ${spectral_min} ${spectral_max} ${jacobian} 0 0.4 ${sliceobject} -size ${image_width} ${image_height} -bg black -crop -top -sup 3");
-	}
+if(! $show_both_sides) {
+  if($value_peak > 0) {
+    $spectral_min = abs($fdr_threshold);
+    $spectral_max = $positive_max_peak;
+  }
+  else {
+    $spectral_min = -abs($fdr_threshold);
+    $spectral_max = $negative_max_peak;
+  }
+  #ray_trace
+  if($slice_direction eq "coronal") {
+    system_call_error_check("ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} -nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 -under transparent -spectral ${spectral_min} ${spectral_max} ${jacobian} 0 0.4 ${sliceobject} -size ${image_width} ${image_height} -bg black -crop -back -sup 3");
+  }
+  elsif($slice_direction eq "sagittal") {
+    system_call_error_check("ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} -nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 -under transparent -spectral ${spectral_min} ${spectral_max} ${jacobian} 0 0.4 ${sliceobject} -size ${image_width} ${image_height} -bg black -crop -right -sup 3");
+  }
+  else { #transverse 
+    system_call_error_check("ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} -nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 -under transparent -spectral ${spectral_min} ${spectral_max} ${jacobian} 0 0.4 ${sliceobject} -size ${image_width} ${image_height} -bg black -crop -top -sup 3");
+  }
 }
-else # show both the negative and the positive peak areas
-{
-	my $hotred_min = abs($fdr_threshold);
-	my $hotred_max = $positive_max_peak;
-	my $hotblue_min = -abs($fdr_threshold);
-	my $hotblue_max = $negative_max_peak;
-	
-	my $ray_trace_command = "ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} ";
-	$ray_trace_command .= "-nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 ";
-	if(abs($hotred_max) > abs($hotred_min))
-	{
-		$ray_trace_command .= "-under transparent -usercc $FindBin::Bin/../share/mice-minc-tools/hotred ${hotred_min} ${hotred_max} ";
-		$ray_trace_command .= "${jacobian} 0 0.4 ";
-	}
-	if(abs($hotblue_max) > abs($hotblue_min))
-	{
-		$ray_trace_command .= "-under transparent -usercc $FindBin::Bin/../share/mice-minc-tools/hotblue ${hotblue_min} ${hotblue_max} ";
-		$ray_trace_command .= "${jacobian} 0 0.4 ";
-	}
-	$ray_trace_command .= "${sliceobject} -size ${image_width} ${image_height} -bg black -crop -sup 3 ";
-	if($slice_direction eq "coronal")
-	{
-		$ray_trace_command .= "-back";
-	}
-	elsif($slice_direction eq "sagittal")
-	{
-		$ray_trace_command .= "-right";
-	}
-	else
-	{
-		$ray_trace_command .= "-top";
-	}
-	system("$ray_trace_command");
+else { # show both the negative and the positive peak areas
+  my $hotred_min = abs($fdr_threshold);
+  my $hotred_max = $positive_max_peak;
+  my $hotblue_min = -abs($fdr_threshold);
+  my $hotblue_max = $negative_max_peak;
+
+  my $ray_trace_command = "ray_trace -output ${rgboutputfile} -nolight -line_width ${max_step_size} ${crosshairobject} ";
+  $ray_trace_command .= "-nolight -gray ${intensity_image_min} ${intensity_image_max} ${final_nlin} 0 1 ";
+  if(abs($hotred_max) > abs($hotred_min)) {
+    $ray_trace_command .= "-under transparent -usercc $FindBin::Bin/../share/minc-stuffs/hotred ${hotred_min} ${hotred_max} ";
+    $ray_trace_command .= "${jacobian} 0 0.4 ";
+  }
+  if(abs($hotblue_max) > abs($hotblue_min)) {
+    $ray_trace_command .= "-under transparent -usercc $FindBin::Bin/../share/minc-stuffs/hotblue ${hotblue_min} ${hotblue_max} ";
+    $ray_trace_command .= "${jacobian} 0 0.4 ";
+  }
+  $ray_trace_command .= "${sliceobject} -size ${image_width} ${image_height} -bg black -crop -sup 3 ";
+  if($slice_direction eq "coronal") {
+    $ray_trace_command .= "-back";
+  }
+  elsif($slice_direction eq "sagittal") {
+    $ray_trace_command .= "-right";
+  }
+  else {
+    $ray_trace_command .= "-top";
+  }
+  system_call_error_check("$ray_trace_command");
 }
 
 # get the actual image sizes, after they have been cropped
@@ -420,116 +386,121 @@ my $yspecmin = $ybar + $barlength;
 my $textcolor = "black";
 my $pngbase = $rgboutputfile;
 $pngbase =~ s/.rgb//;
-system("convert ${rgboutputfile} ${pngbase}.png");
+if($flip_images){
+  system_call_error_check("convert -flip ${rgboutputfile} ${pngbase}.png")
+}
+else{
+  system_call_error_check("convert ${rgboutputfile} ${pngbase}.png");
+}
 push @temp_files, "${pngbase}.png";
 #put the inset in the figure
 my $NWcornerX = $anatomical_width - 155;
 my $NWcornerY = $anatomical_height - 65;
-if($insert_brain_inset)
-{
-	system("convert ${pngbase}.png -draw \'image Over ${NWcornerX} ${NWcornerY} 150 60 \"${inset}\"\' -flatten ${pngbase}_inset.png");
-	push @temp_files, "${pngbase}_inset.png";
+if($insert_brain_inset) {
+  system_call_error_check("convert ${pngbase}.png -draw \'image Over ${NWcornerX} ${NWcornerY} 150 60 \"${inset_final}\"\' -flatten ${pngbase}_inset.png");
+  push @temp_files, "${pngbase}_inset.png";
 }
-else
-{
-	system("convert ${pngbase}.png ${pngbase}_inset.png");
+else {
+  system_call_error_check("convert ${pngbase}.png ${pngbase}_inset.png");
 }
 
-if(! $show_both_sides)
-{
-	my $int_spectral_min = get_one_decimal($spectral_min);
-	my $int_spectral_max = get_one_decimal($spectral_max);
-	system("convert xc:white -resize ${extention}x${anatomical_height}! ${pngbase}_ext.png");
-	push @temp_files, "${pngbase}_ext.png";
-	
-	system("convert ${pngbase}_ext.png -draw \'image Over ${xbar} ${ybar} ${barthickness} ${barlength} \"$FindBin::Bin/../share/mice-minc-tools/spectral.png\"\' -flatten ${pngbase}_ext_spec.png");
-	push @temp_files, "${pngbase}_ext_spec.png";
-	
-	system("convert -rotate 90 ${pngbase}_ext_spec.png ${pngbase}_ext_spec_r.png");
-	push @temp_files, "${pngbase}_ext_spec_r.png";
-	
-	system("convert ${pngbase}_ext_spec_r.png -fill $textcolor -pointsize 24 -draw \'text ${xtstattext},${ytstattext} \"${caption_colorbar}\"\' ${pngbase}_ext_spec_r_text.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text.png";
-	
-	system("convert -rotate -90 ${pngbase}_ext_spec_r_text.png ${pngbase}_ext_spec_r_text_r.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text_r.png";
-	
-	system("convert ${pngbase}_ext_spec_r_text_r.png -fill $textcolor -pointsize 24 -draw \'text ${xspecmax},${yspecmax} \"${int_spectral_max}\"\' -draw \'text ${xspecmin},${yspecmin} \"${int_spectral_min}\"\' ${pngbase}_ext_spec_r_text_r_final_a.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text_r_final_a.png";
-	
-	system("convert ${pngbase}_ext_spec_r_text_r_final_a.png -draw \'image Over 0 0 ${anatomical_width} ${anatomical_height} \"${pngbase}_inset.png\"\' -flatten ${pngbase}_ext_spec_r_text_r_final.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text_r_final.png";
+if(! $show_both_sides) {
+  my $int_spectral_min = get_one_decimal($spectral_min);
+  my $int_spectral_max = get_one_decimal($spectral_max);
+  system_call_error_check("convert xc:white -resize ${extention}x${anatomical_height}! ${pngbase}_ext.png");
+  push @temp_files, "${pngbase}_ext.png";
+
+  system_call_error_check("convert ${pngbase}_ext.png -draw \'image Over ${xbar} ${ybar} ${barthickness} ${barlength} \"$FindBin::Bin/../share/minc-stuffs/spectral.png\"\' -flatten ${pngbase}_ext_spec.png");
+  push @temp_files, "${pngbase}_ext_spec.png";
+
+  system_call_error_check("convert -rotate 90 ${pngbase}_ext_spec.png ${pngbase}_ext_spec_r.png");
+  push @temp_files, "${pngbase}_ext_spec_r.png";
+
+  system_call_error_check("convert ${pngbase}_ext_spec_r.png -fill $textcolor -pointsize 24 -draw \'text ${xtstattext},${ytstattext} \"${caption_colorbar}\"\' ${pngbase}_ext_spec_r_text.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text.png";
+
+  system_call_error_check("convert -rotate -90 ${pngbase}_ext_spec_r_text.png ${pngbase}_ext_spec_r_text_r.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text_r.png";
+
+  system_call_error_check("convert ${pngbase}_ext_spec_r_text_r.png -fill $textcolor -pointsize 24 -draw \'text ${xspecmax},${yspecmax} \"${int_spectral_max}\"\' -draw \'text ${xspecmin},${yspecmin} \"${int_spectral_min}\"\' ${pngbase}_ext_spec_r_text_r_final_a.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text_r_final_a.png";
+
+  system_call_error_check("convert ${pngbase}_ext_spec_r_text_r_final_a.png -draw \'image Over 0 0 ${anatomical_width} ${anatomical_height} \"${pngbase}_inset.png\"\' -flatten ${pngbase}_ext_spec_r_text_r_final.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text_r_final.png";
 }
-else
-{
-	my $int_hotred_min = get_one_decimal(abs($fdr_threshold));
-	my $int_hotred_max = get_one_decimal($positive_max_peak);
-	my $int_hotblue_min = get_one_decimal(-abs($fdr_threshold));
-	my $int_hotblue_max = get_one_decimal($negative_max_peak);
-	
-	my $bottom_bar = int ((${anatomical_height}/2) - 15);
-	my $x_for_bar_two = $extention - $anatomical_width - $xoffset - $barthickness -1;
-	
-	my $bar_length = ($anatomical_height - 30)/2;
-	my $x_range_position = $anatomical_width + $xoffset + $barthickness + 5;
-	my $y_range_position_1 = 30;
-	my $y_range_position_2 = 10 + $bar_length ;
-	my $y_range_position_3 = 10 + $bar_length + 30;
-	my $y_range_position_4 = 2 * $bar_length + 20;
-	
-	system("convert xc:white -resize ${extention}x${anatomical_height}! ${pngbase}_ext.png");
-	push @temp_files, "${pngbase}_ext.png";
-	
-	system("convert ${pngbase}_ext.png -draw \'image Over ${xbar} 10 ${barthickness} ${bottom_bar} \"$FindBin::Bin/../share/mice-minc-tools/hotred.png\"\' -flatten ${pngbase}_ext_spec.png");
-	push @temp_files, "${pngbase}_ext_spec.png";
-	
-	system("convert -rotate 180 ${pngbase}_ext_spec.png ${pngbase}_ext_spec_rotated_180.png");
-	push @temp_files, "${pngbase}_ext_spec_rotated_180.png";
-	
-	system("convert ${pngbase}_ext_spec_rotated_180.png -draw \'image Over $x_for_bar_two 10 ${barthickness} ${bottom_bar} \"$FindBin::Bin/../share/mice-minc-tools/hotblue.png\"\' -flatten ${pngbase}_ext_spec_r_180_bar.png");
-	push @temp_files, "${pngbase}_ext_spec_r_180_bar.png";
-	
-	system("convert -rotate 180 ${pngbase}_ext_spec_r_180_bar.png ${pngbase}_ext_spec_1.png");
-	push @temp_files, "${pngbase}_ext_spec_1.png";
-	
-	system("convert -rotate 90 ${pngbase}_ext_spec_1.png ${pngbase}_ext_spec_r.png");
-	push @temp_files, "${pngbase}_ext_spec_r.png";
+else {
+  my $int_hotred_min = get_one_decimal(abs($fdr_threshold));
+  my $int_hotred_max = get_one_decimal($positive_max_peak);
+  my $int_hotblue_min = get_one_decimal(-abs($fdr_threshold));
+  my $int_hotblue_max = get_one_decimal($negative_max_peak);
 
-	my $y_tstat_text = $anatomical_width + 130;
-	my $x_tstat_text = $anatomical_height/2 - 50;
-	system("convert ${pngbase}_ext_spec_r.png -fill $textcolor -pointsize 24 -draw \'text ${x_tstat_text},${y_tstat_text} \"${caption_colorbar}\"\' ${pngbase}_ext_spec_r_text.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text.png";
+  my $bottom_bar = int ((${anatomical_height}/2) - 15);
+  my $x_for_bar_two = $extention - $anatomical_width - $xoffset - $barthickness -1;
 
-	system("convert -rotate -90 ${pngbase}_ext_spec_r_text.png ${pngbase}_ext_spec_r_text_r.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text_r.png";
-	
-	system("convert ${pngbase}_ext_spec_r_text_r.png -fill $textcolor -pointsize 24 -draw \'text ${x_range_position},${y_range_position_1} \"${int_hotred_max}\"\' -draw \'text ${x_range_position},${y_range_position_2} \"${int_hotred_min}\"\' ${pngbase}_ext_spec_r_text_r_final_a.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text_r_final_a.png";
-	
-	system("convert ${pngbase}_ext_spec_r_text_r_final_a.png -fill $textcolor -pointsize 24 -draw \'text ${x_range_position},${y_range_position_3} \"${int_hotblue_min}\"\' -draw \'text ${x_range_position},${y_range_position_4} \"${int_hotblue_max}\"\' ${pngbase}_ext_spec_r_text_r_final_b.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text_r_final_b.png";
-	
-	system("convert ${pngbase}_ext_spec_r_text_r_final_b.png -draw \'image Over 0 0 ${anatomical_width} ${anatomical_height} \"${pngbase}_inset.png\"\' -flatten ${pngbase}_ext_spec_r_text_r_final.png");
-	push @temp_files, "${pngbase}_ext_spec_r_text_r_final.png";
+  my $bar_length = ($anatomical_height - 30)/2;
+  my $x_range_position = $anatomical_width + $xoffset + $barthickness + 5;
+  my $y_range_position_1 = 30;
+  my $y_range_position_2 = 10 + $bar_length ;
+  my $y_range_position_3 = 10 + $bar_length + 30;
+  my $y_range_position_4 = 2 * $bar_length + 20;
+
+  system_call_error_check("convert xc:white -resize ${extention}x${anatomical_height}! ${pngbase}_ext.png");
+  push @temp_files, "${pngbase}_ext.png";
+
+  system_call_error_check("convert ${pngbase}_ext.png -draw \'image Over ${xbar} 10 ${barthickness} ${bottom_bar} \"$FindBin::Bin/../share/minc-stuffs/hotred.png\"\' -flatten ${pngbase}_ext_spec.png");
+  push @temp_files, "${pngbase}_ext_spec.png";
+
+  system_call_error_check("convert -rotate 180 ${pngbase}_ext_spec.png ${pngbase}_ext_spec_rotated_180.png");
+  push @temp_files, "${pngbase}_ext_spec_rotated_180.png";
+
+  system_call_error_check("convert ${pngbase}_ext_spec_rotated_180.png -draw \'image Over $x_for_bar_two 10 ${barthickness} ${bottom_bar} \"$FindBin::Bin/../share/minc-stuffs/hotblue.png\"\' -flatten ${pngbase}_ext_spec_r_180_bar.png");
+  push @temp_files, "${pngbase}_ext_spec_r_180_bar.png";
+
+  system_call_error_check("convert -rotate 180 ${pngbase}_ext_spec_r_180_bar.png ${pngbase}_ext_spec_1.png");
+  push @temp_files, "${pngbase}_ext_spec_1.png";
+
+  system_call_error_check("convert -rotate 90 ${pngbase}_ext_spec_1.png ${pngbase}_ext_spec_r.png");
+  push @temp_files, "${pngbase}_ext_spec_r.png";
+
+  my $y_tstat_text = $anatomical_width + 130;
+  my $x_tstat_text = $anatomical_height/2 - 50;
+  system_call_error_check("convert ${pngbase}_ext_spec_r.png -fill $textcolor -pointsize 24 -draw \'text ${x_tstat_text},${y_tstat_text} \"${caption_colorbar}\"\' ${pngbase}_ext_spec_r_text.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text.png";
+
+  system_call_error_check("convert -rotate -90 ${pngbase}_ext_spec_r_text.png ${pngbase}_ext_spec_r_text_r.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text_r.png";
+
+  system_call_error_check("convert ${pngbase}_ext_spec_r_text_r.png -fill $textcolor -pointsize 24 -draw \'text ${x_range_position},${y_range_position_1} \"${int_hotred_max}\"\' -draw \'text ${x_range_position},${y_range_position_2} \"${int_hotred_min}\"\' ${pngbase}_ext_spec_r_text_r_final_a.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text_r_final_a.png";
+
+  system_call_error_check("convert ${pngbase}_ext_spec_r_text_r_final_a.png -fill $textcolor -pointsize 24 -draw \'text ${x_range_position},${y_range_position_3} \"${int_hotblue_min}\"\' -draw \'text ${x_range_position},${y_range_position_4} \"${int_hotblue_max}\"\' ${pngbase}_ext_spec_r_text_r_final_b.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text_r_final_b.png";
+
+  system_call_error_check("convert ${pngbase}_ext_spec_r_text_r_final_b.png -draw \'image Over 0 0 ${anatomical_width} ${anatomical_height} \"${pngbase}_inset.png\"\' -flatten ${pngbase}_ext_spec_r_text_r_final.png");
+  push @temp_files, "${pngbase}_ext_spec_r_text_r_final.png";
 }
 
-system("convert ${pngbase}_ext_spec_r_text_r_final.png ${outputfile}");
-
-if($remove_temp)
-{
-	system("rm -f @temp_files");
-	system("rm -fr ${image_dir}/tmp_raytrace");
+if(${outputfile} =~ m/.pdf/) {
+  my $keep_backup = ${outputfile};
+  $keep_backup =~ s/.pdf/.png/;
+  system("cp ${pngbase}_ext_spec_r_text_r_final.png ${keep_backup}");
 }
 
-sub get_one_decimal
-{
-	my $float = shift;
-	
-	my $int_part = int $float;
-	
-	$float = $float*10;
-	$float = $float - 10 * $int_part;
-	my $first_decimal = int $float;
-	
-	return $int_part + $first_decimal/10;
+system_call_error_check("convert -alpha off ${pngbase}_ext_spec_r_text_r_final.png ${outputfile}");
+
+if($remove_temp) {
+  system_call_error_check("rm -f @temp_files");
+  system_call_error_check("rm -fr ${image_dir}/tmp_raytrace");
+}
+
+sub get_one_decimal {
+  my $float = shift;
+
+  my $int_part = int $float;
+
+  $float = $float*10;
+  $float = $float - 10 * $int_part;
+  my $first_decimal = int $float;
+
+  return $int_part + $first_decimal/10;
 }
