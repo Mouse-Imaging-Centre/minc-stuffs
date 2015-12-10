@@ -1,3 +1,12 @@
+New in Version 0.1.12
+=====================
+* added the option -flip-images to ray_trace_crosshair in case you are working with a version of 
+  MINC that flips images when using ray_trace
+* fixed bug in minc_label_ops; the binarize option now works
+* rotational_minctracc uses subprocess instead of system to ensure you get a non-zero return when
+  the program fails. Also added the --simplex option. By default the simplex value that was used
+  was only appropriate for human brains. For mouse brains you can set this to 1 (mm) for instance.
+
 New in Version 0.1.11
 =====================
 * turned off multiprocessing in pmincaverage, because it sometimes crashes on compressed MINC files
