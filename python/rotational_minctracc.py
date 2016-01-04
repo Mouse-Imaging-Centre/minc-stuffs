@@ -33,7 +33,7 @@ def get_tempfile(suffix):
 
 def get_centre_of_gravity(file):
     lines = subprocess.check_output(["volume_cog", file])
-    line = lines.split('\n')[-2]
+    line = lines.decode().split('\n')[-2]
     cog = array(line.strip().split(" ")).astype("float32")
     return cog
 
