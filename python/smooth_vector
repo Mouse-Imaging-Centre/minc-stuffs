@@ -8,11 +8,9 @@
 # Created Aug 26, 2004
 
 import sys
-import string
 import os, tempfile
 import subprocess
 import re
-import exceptions
 from optparse import OptionParser, Option, OptionValueError
 
 program_name = 'smooth_vector.py'
@@ -43,8 +41,8 @@ def process_volume(input, output, options):
             subprocess.check_call(('mincblur -fwhm %f %s %s' % (options.fwhm, working, smooth_base[i])).split())
 
     subprocess.check_call(('mincconcat -clobber -concat_dimension vector_dimension %s %s'
-                          % (string.join(smoothed), output)).split())
-    subprocess.check_call(('rm -f %s %s' % (string.join(smoothed), working)).split())
+                          % (' '.join(smoothed), output)).split())
+    subprocess.check_call(('rm -f %s %s' % (' '.join(smoothed), working)).split())
 
 
 
@@ -54,7 +52,7 @@ def get_vector_length(input):
     # sometimes the file exists, but the MINC file has not been 
     # properly written out to disk, check for this:
     output = subprocess.check_output(["mincinfo", input], stderr=subprocess.STDOUT)
-    if re.search("Unable to open file", output):
+    if re.search(b"Unable to open file", output):
         sys.exit("\nError: can not read input file: '%s'\n" % input)
     length = int(subprocess.check_output(['mincinfo', '-dimlength', 'vector_dimension', input]))
     return length
