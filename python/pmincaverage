@@ -94,7 +94,7 @@ if __name__ == "__main__":
                                      volhandles[0].sizes[2],
                                      volhandles[0].sizes[3]))
                 
-        print "SLICE: %i" % i
+        print("SLICE: %i" % i)
         # use parallel processing to get the slice data
         q = manager.Queue()
         for j in range(nfiles):
