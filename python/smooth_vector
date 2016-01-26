@@ -8,33 +8,12 @@
 # Created Aug 26, 2004
 
 import sys
-import string
 import os, tempfile
 import subprocess
 import re
-import exceptions
 from optparse import OptionParser, Option, OptionValueError
 
 program_name = 'smooth_vector.py'
-
-#----------------------------------------------------------------------------
-# define program specific exception
-class FatalError(exceptions.Exception):
-    def __init__(self,args=None):
-        self.msg = args
-
-#----------------------------------------------------------------------------
-def run_command_and_check_return(cmd):
-    """
-    A little wrapper around os.system such that an error
-    can be raised when one of the command line programs fail.
-    """
-    if os.system(cmd) != 0:
-        print "\nError: Could not perform command: %s\n" % cmd
-        raise SystemExit
-
-
-#----------------------------------------------------------------------
 
 def process_volume(input, output, options):
 
@@ -48,8 +27,7 @@ def process_volume(input, output, options):
         smoothed = [tempfile.mktemp(".mnc") for i in range(n)]
 
     for i in range(n):
-        run_command_and_check_return("mincreshape -clobber -dimrange vector_dimension=%i %s %s" % \
-               (i, input, working))
+        subprocess.check_call(('mincreshape -clobber -dimrange vector_dimension=%i %s %s' % (i, input, working)).split())
 
         if options.smoothing == 'spline':
             if options.mask:
@@ -57,31 +35,26 @@ def process_volume(input, output, options):
             else:
                 mask_option = ''
         
-                run_command_and_check_return("spline_smooth -distance %f -b_spline %s %s %s" %\
-                          (options.distance, mask_option, working, smoothed[i]))
+                subprocess.check_call(('spline_smooth -distance %f -b_spline %s %s %s'
+                                      % (options.distance, mask_option, working, smoothed[i])).split())
         else:
-            run_command_and_check_return("mincblur -fwhm %f %s %s" % \
-                      (options.fwhm, working, smooth_base[i]))
+            subprocess.check_call(('mincblur -fwhm %f %s %s' % (options.fwhm, working, smooth_base[i])).split())
 
-    run_command_and_check_return("mincconcat -clobber -concat_dimension vector_dimension %s %s" % \
-           (string.join(smoothed), output))
-    run_command_and_check_return("rm -f %s %s" % (string.join(smoothed), working))
+    subprocess.check_call(('mincconcat -clobber -concat_dimension vector_dimension %s %s'
+                          % (' '.join(smoothed), output)).split())
+    subprocess.check_call(('rm -f %s %s' % (' '.join(smoothed), working)).split())
 
 
 
 def get_vector_length(input):
     if not os.path.exists(input):
-        print "\nError: input file does not exist: ", input, " Exiting...\n"
-        sys.exit(1)
+        sys.exit("\nError: input file does not exist: '%s'; exiting...\n" % input)
     # sometimes the file exists, but the MINC file has not been 
     # properly written out to disk, check for this:
-    mincinfoCmd = subprocess.Popen(["mincinfo", input], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
-    if re.search("Unable to open file", mincinfoCmd.stdout.read()):
-        print "\nError: can not read input file: ",  input, "\n"
-        sys.exit(1)
-    out = os.popen('mincinfo -dimlength vector_dimension %s' % input)
-    length = int(out.readline())
-    out.close()
+    output = subprocess.check_output(["mincinfo", input], stderr=subprocess.STDOUT)
+    if re.search(b"Unable to open file", output):
+        sys.exit("\nError: can not read input file: '%s'\n" % input)
+    length = int(subprocess.check_output(['mincinfo', '-dimlength', 'vector_dimension', input]))
     return length
 
 #----------------------------------------------------------------------
@@ -119,24 +92,12 @@ by spline approximation
     if len(args) == 2:
         input, output = args
     else:
-        print usage
-        raise SystemExit
+        sys.exit(usage)
 
-    try:
-        if not options.clobber and os.path.exists(output):
-            raise FatalError, \
-               "The --clobber option is needed to overwrite an existing file."
-        if options.smoothing == 'filter' and options.mask:
-            raise FatalError, \
-                  "The combination of --mask and --filter is not yet supported."
-    except FatalError, e:
-        print 'Error(%s):' % program_name, e.msg
-        raise SystemExit
+    if not options.clobber and os.path.exists(output):
+        sys.exit("The --clobber option is needed to overwrite an existing file.")
+    if options.smoothing == 'filter' and options.mask:
+        sys.exit("The combination of --mask and --filter is not yet supported.")
 
-
-    try:
-        process_volume(input, output, options)
-    except SystemExit:
-        # one of the system calls failed, exit with a non zero return
-        sys.exit(1)
+    process_volume(input, output, options)
 
