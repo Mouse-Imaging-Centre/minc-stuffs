@@ -1,3 +1,7 @@
+New in Version 0.1.13
+=====================
+* code changes to ensure python3 compatibility
+
 New in Version 0.1.12
 =====================
 * added the option -flip-images to ray_trace_crosshair in case you are working with a version of 
