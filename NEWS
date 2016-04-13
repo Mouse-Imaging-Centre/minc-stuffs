@@ -1,3 +1,16 @@
+New in Version 0.1.14
+=====================
+* completely remove the multiprocessing machinery from pmincaverage since this caused extra processes
+  to be spawned even when running single-threaded, causing large memory usage to be attributed to
+  running pmincaverage instances.  If necessary, this machinery could be reinstated
+  behind some conditional logic.
+* small upgrades to voxel_vote: better help messages and argument parsing, 
+  ability to vote on a single file, small code improvements, --(no-)clobber respected
+* sge_batch has been removed; use pipetone/qbatch instead
+* atlas_to_atlas.pl has been added, though use of Pydpiper's MAGeT.py is recommended in general
+* tagtoxfm and some supporting code have been added to allow their use in environments without
+  a build of the visual tools from minc-toolkit
+
 New in Version 0.1.13
 =====================
 * code changes to ensure python3 compatibility
