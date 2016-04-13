@@ -1,37 +1,37 @@
 #!/usr/bin/env python
 
 from pyminc.volumes.factory import *
+
 from numpy import *
 from scipy.stats import *
-from optparse import OptionParser
+from argparse import ArgumentParser
+import os.path
+import sys
 
 if __name__ == "__main__":
 
-    usage = "Usage text"
-    description = "Description text"
-    
-    parser = OptionParser(usage=usage, description=description)
-    parser.add_option("--clobber", dest="clobber",
-                      help="clobber output file",
-                      type="string")
+    parser = ArgumentParser()
+    parser.add_argument("input_files", nargs="+", type=str)
+    parser.add_argument("output_file", type=str)
+    g = parser.add_mutually_exclusive_group()
+    g.add_argument("--clobber", dest="clobber", action="store_true",
+                   help="clobber output file [default = %(default)s]")
+    g.add_argument("--no-clobber", dest="clobber", action="store_false",
+                   help="opposite of '--clobber'")
+    g.set_defaults(clobber=False)
 
-    (options, args) = parser.parse_args()
+    options = parser.parse_args()
 
-    if len(args) < 3:
-        parser.error("Incorrect number of arguments")
-
-    outfilename = args[-1]
-    
-    
-    # clobber check should go here
+    if not(options.clobber) and os.path.exists(options.output_file):
+        sys.exit("Output file already exists; use --clobber to overwrite.")
     
     volhandles = []
 
-    nfiles = len(args)-1
-    for i in range( nfiles ):
-        volhandles.append(volumeFromFile(args[i], dtype='ushort', labels=True))
+    nfiles = len(options.input_files)
+    for filename in options.input_files:
+        volhandles.append(volumeFromFile(filename, dtype='ushort', labels=True))
 
-    outfile = volumeFromInstance(volhandles[0], outfilename, dtype='ushort', volumeType='ushort', labels=True)
+    outfile = volumeFromInstance(volhandles[0], options.output_file, dtype='ushort', volumeType='ushort', labels=True)
 
     sliceArray = zeros( (nfiles,
                          volhandles[0].sizes[1],
@@ -50,6 +50,3 @@ if __name__ == "__main__":
     outfile.writeFile()
     outfile.closeVolume()
 
-
-                                                          
-    
