@@ -1,4 +1,4 @@
-bin_SCRIPTS = lin_from_nlin scale_voxels add_noise_to_volume grid_object_manipulator ray_trace_crosshair concatenate_tags sge_batch
+bin_SCRIPTS = lin_from_nlin scale_voxels add_noise_to_volume grid_object_manipulator ray_trace_crosshair concatenate_tags
 
 grid_object_manipulator: grid_object_manipulator
 	sed < $< > $@-t \
