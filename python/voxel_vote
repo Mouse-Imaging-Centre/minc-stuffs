@@ -43,9 +43,9 @@ if __name__ == "__main__":
                                            (1,volhandles[0].sizes[1],
                                             volhandles[0].sizes[2]))
             t.shape = (volhandles[0].sizes[1], volhandles[0].sizes[2])
-            sliceArray[j::] = t
+            sliceArray[j,:,:] = t
         
-        outfile.data[i::] = mode(sliceArray)[0]
+        outfile.data[i,:,:] = mode(sliceArray)[0]
 
     outfile.writeFile()
     outfile.closeVolume()
