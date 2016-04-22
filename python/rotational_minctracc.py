@@ -81,18 +81,14 @@ def resample_volume(source, target, transform):
 def minctracc(source, target, mask, stepsize, wtranslations, simplex):
     wtrans_decomp = array(wtranslations.split(',')).astype("float")
     tmp_transform = get_tempfile('.xfm')
-    if mask is not None:
-        cmd = ("minctracc -identity -lsq6 -xcorr -simplex %s -step %s %s %s %s %s %s -source_mask %s -model_mask %s -w_translations %s %s %s"
-                % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform, mask, mask,
-                   wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
-        print(cmd)
-        subprocess.check_call(cmd.split())
-    else:
-        cmd = ("minctracc -identity -lsq6 -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s"
-                 % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform,
-                    wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
-        print(cmd)
-        subprocess.check_call(cmd.split())
+    cmd = ("minctracc -identity -lsq6 -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s " 
+           % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform,
+           wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
+    if mask:
+        cmd += ("-source_mask %s -model_mask %s " % (mask, mask))
+    print(cmd)
+    subprocess.check_call(cmd.split())
+    
     return tmp_transform
 
 def concat_transforms(t1, t2):
@@ -119,9 +115,14 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
             for z in range(-start, start+1, interval):
                 # we need to include the centre of the volume as rotation centre = cog1
                 init_transform = create_transform(cogdiff, x, y, z, cog1)
-                #init_resampled = resample_volume(source,target, init_transform)
                 init_resampled = resample_volume(source ,target, init_transform)
-                transform = minctracc(init_resampled, target, mask, stepsize=stepsize,
+                # often it seems like using a mask from the start does more harm
+                # than good. If the mask is not big enough, the now restricted field
+                # of view can throw off the registration. In stead of using the mask
+                # right away, we'll run the main loop without a mask. Then, no matter
+                # what we will run a refinement stage where the mask will be used
+                # if it was provided
+                transform = minctracc(init_resampled, target, None, stepsize=stepsize,
                                       wtranslations=wtranslations, simplex=simplex)
                 resampled = resample_volume(init_resampled, target, transform)
                 xcorr = compute_xcorr(resampled, targetvol, maskvol)
@@ -137,10 +138,26 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     os.remove(resampled)
                 os.remove(init_resampled)
                 print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
+                
+    # now run a single minctracc call to refine the transformation gotten 
+    # so far. We can use the mask here if it was provided
+    sort_results(results)
+    best_trans_so_far = results[-1]["transform"]
+    input_for_refined = resample_volume(source ,target, best_trans_so_far)
+    refined_transform = minctracc(input_for_refined, target, mask, stepsize=stepsize,
+                                  wtranslations=wtranslations, simplex=simplex)                              
+    refined_resampled = resample_volume(input_for_refined, target, refined_transform)
+    xcorr = compute_xcorr(refined_resampled, targetvol, maskvol)
+    if isnan(xcorr):
+        xcorr = 0
+    conc_refined_transform = concat_transforms(best_trans_so_far, refined_transform)
+    results.append({'xcorr': xcorr, 'transform': conc_refined_transform, \
+                                'resampled': refined_resampled, 'x': "REFINED", \
+                                'y': "REFINED", 'z': "REFINED"})
+    sort_results(results)
     targetvol.closeVolume()
     if mask is not None:
         maskvol.closeVolume()
-    sort_results(results)
     return results
 
 def dict_extract(adict, akey):
