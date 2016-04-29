@@ -37,6 +37,64 @@ def get_centre_of_gravity(file):
     cog = array(line.strip().split(" ")).astype("float32")
     return cog
 
+def get_coordinates_from_tag_file(tag_file):
+    #
+    # Tag file content looks as follows:
+    #
+    # MNI Tag Point File
+    # Volumes = 2;
+    # %Mon Apr 25 16:58:13 2016>>> find_peaks -pos_only -min_distance 2 //dev/shm//rot_23705/rot_5.mnc //dev/shm//rot_23705/rot_0..tag
+    #
+    # Points =
+    # -28.6989 -49.7709 -28.283 -28.6989 -49.7709 -28.283 "12"
+    # -28.5549 -49.7649 -25.445 -28.5549 -49.7649 -25.445 "11"
+    # -28.1424 -49.6824 -13.28 -28.1424 -49.6824 -13.28 "11"
+    # -27.7989 -49.2069 -22.667 -27.7989 -49.2069 -22.667 "10";
+    #
+    all_coordinates = []
+    with open(tag_file) as f:
+        content = f.readlines()
+        found_coordinates = False
+        for line in content:
+            if not found_coordinates:
+                if "Points" in line:
+                    found_coordinates = True
+            else:
+                # each line with coordinates starts with a space
+                # so the very first element when splitting this 
+                # line is the empty string. We don't need that one
+                current_coor = array([line.split(' ')[1],
+                                      line.split(' ')[2],
+                                      line.split(' ')[3]]).astype("float32")
+                all_coordinates.append(current_coor)
+    return all_coordinates
+    
+    
+def get_distance_transform_peaks(input_file, peak_distance):
+    #
+    # for solid input files (brains, embryos) we can
+    # calculate the distance transform for the input file
+    # and use peaks from that distance transform to 
+    # widen our search space a bit.
+    #
+    # the .decode() in the end removes the b from the front
+    # of the returned string (Python3 default)
+    bimodalt_value = subprocess.check_output(["mincstats",
+                                             "-quiet",
+                                             "-biModalT",
+                                             input_file]).rstrip().decode()
+    max_value = subprocess.check_output(["mincstats",
+                                         "-quiet",
+                                         "-max",
+                                         input_file]).rstrip().decode()
+    distance_transform = get_tempfile('.mnc')
+    subprocess.check_call(("mincmorph -successive B[%s:%s]F %s %s" %
+                            (bimodalt_value,max_value,input_file,distance_transform)).split())
+    peak_tags = get_tempfile('.tag')
+    subprocess.check_call(("find_peaks -pos_only -min_distance %s %s %s" % (peak_distance, distance_transform, peak_tags)).split())
+    all_coors = get_coordinates_from_tag_file(peak_tags)
+    return all_coors
+
 def compute_xcorr(sourcefile, targetvol, maskvol):
     try:
         sourcevol = volumeFromFile(sourcefile)
@@ -95,65 +153,102 @@ def concat_transforms(t1, t2):
     tmp_transform = get_tempfile('.xfm')
     subprocess.check_call(("xfmconcat %s %s %s" % (t1, t2, tmp_transform)).split())
     return tmp_transform
-              
-def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, wtranslations="0.2,0.2,0.2"):
 
-    # get the centre of gravity for both volumes
-    cog1 = get_centre_of_gravity(source)
-    cog2 = get_centre_of_gravity(target)
-    cogdiff = cog2 - cog1
-    print("\n\nCOG diff: %s\n\n" % cogdiff.tolist())
-
+def get_cross_correlation_from_coordinate_pair(source_img, target_img, target_vol, mask, coordinate_pair):
+    # Generate a transformation based on the coordinate_pair provided. Apply this 
+    # transformation to the source_img and calculate the cross correlation between
+    # the source_img and target_img after this initial alignment
+    #
+    #
+    # source coordinates : coordinate_pair[0]
+    # target_coordinates : coordinate_pair[1]
+    transform_from_coordinates = create_transform(coordinate_pair[1] - coordinate_pair[0], 0, 0, 0, coordinate_pair[0])
+    resampled_source = resample_volume(source_img, target_img, transform_from_coordinates)
+    xcorr = compute_xcorr(resampled_source, target_vol, mask)
+    os.remove(resampled_source)
+    return float(xcorr)
+    
+def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, 
+                   wtranslations="0.2,0.2,0.2", use_multiple_seeds=True, max_number_seeds=5):
     # load the target and mask volumes
     targetvol = volumeFromFile(target)
     maskvol = volumeFromFile(mask) if mask is not None else None
     
+    # 1) The default way of aligning files is by using the centre
+    #    of gravity of the input files
+    cog_source = get_centre_of_gravity(source)
+    cog_target = get_centre_of_gravity(target)
+    list_of_coordinate_pairs = [[cog_source, cog_target]]
+    
+    # 2) If we are using multiple seeds, calculate possible
+    #    seeds for both source and target images. The distance
+    #    between peaks is based on the stepsize used for the
+    #    registrations
+    if use_multiple_seeds:
+        list_source_peaks = get_distance_transform_peaks(input_file=source, peak_distance=stepsize*10)
+        print("\n\nPeaks found in the source image:")
+        for coor_src in list_source_peaks:
+            print(coor_src)
+        # also add the center of gravity of the source image
+        list_source_peaks.append(cog_source)
+        list_target_peaks = get_distance_transform_peaks(input_file=target, peak_distance=stepsize*10)
+        print("\n\nPeaks found in the target image:")
+        for coor_trgt in list_target_peaks:
+            print(coor_trgt)
+        # same for the target; add the center of gravity:
+        list_target_peaks.append(cog_target)
+        for source_coor in list_source_peaks:
+            for target_coor in list_target_peaks:
+                list_of_coordinate_pairs.append([source_coor, target_coor])
+    
+        # 3) If we have more coordinates pairs than we'll be using, we'll have
+        #    to determine the initial cross correlation of each pair and sort
+        #    the pairs based on that
+        pairs_with_xcorr = []
+        if len(list_of_coordinate_pairs) > max_number_seeds:
+            for coor_pair in list_of_coordinate_pairs:
+                xcorr_coor_pair = get_cross_correlation_from_coordinate_pair(source, target, targetvol, maskvol, coor_pair)
+                pairs_with_xcorr.append({'xcorr': xcorr_coor_pair,
+                                         'coorpair': coor_pair})
+                print("Xcorr: " + str(xcorr_coor_pair))
+            sort_results(pairs_with_xcorr, reverse_order=True)
+            print("\n\n\nCoordinate pairs and their cross correlation: \n\n")
+            print(pairs_with_xcorr)
+            # empty the list and fill it up with the best matches:
+            list_of_coordinate_pairs = []
+            for i in range(max_number_seeds):
+                list_of_coordinate_pairs.append(pairs_with_xcorr[i]['coorpair'])
+            print("\n\nNew list of coordinates:")
+            print(list_of_coordinate_pairs)
+    
     results = []
     best_xcorr = 0
-    for x in range(-start, start+1, interval):
-        for y in range(-start, start+1, interval):
-            for z in range(-start, start+1, interval):
-                # we need to include the centre of the volume as rotation centre = cog1
-                init_transform = create_transform(cogdiff, x, y, z, cog1)
-                init_resampled = resample_volume(source ,target, init_transform)
-                # often it seems like using a mask from the start does more harm
-                # than good. If the mask is not big enough, the now restricted field
-                # of view can throw off the registration. In stead of using the mask
-                # right away, we'll run the main loop without a mask. Then, no matter
-                # what we will run a refinement stage where the mask will be used
-                # if it was provided
-                transform = minctracc(init_resampled, target, None, stepsize=stepsize,
-                                      wtranslations=wtranslations, simplex=simplex)
-                resampled = resample_volume(init_resampled, target, transform)
-                xcorr = compute_xcorr(resampled, targetvol, maskvol)
-                if isnan(xcorr):
-                    xcorr = 0
-                conc_transform = concat_transforms(init_transform, transform)
-                results.append({'xcorr': xcorr, 'transform': conc_transform, \
-                                'resampled': resampled, 'x': x, \
-                                'y': y, 'z': z})
-                if xcorr > best_xcorr:
-                    best_xcorr = xcorr
-                else:
-                    os.remove(resampled)
-                os.remove(init_resampled)
-                print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
-                
-    # now run a single minctracc call to refine the transformation gotten 
-    # so far. We can use the mask here if it was provided
-    sort_results(results)
-    best_trans_so_far = results[-1]["transform"]
-    input_for_refined = resample_volume(source ,target, best_trans_so_far)
-    refined_transform = minctracc(input_for_refined, target, mask, stepsize=stepsize,
-                                  wtranslations=wtranslations, simplex=simplex)                              
-    refined_resampled = resample_volume(input_for_refined, target, refined_transform)
-    xcorr = compute_xcorr(refined_resampled, targetvol, maskvol)
-    if isnan(xcorr):
-        xcorr = 0
-    conc_refined_transform = concat_transforms(best_trans_so_far, refined_transform)
-    results.append({'xcorr': xcorr, 'transform': conc_refined_transform, \
-                                'resampled': refined_resampled, 'x': "REFINED", \
-                                'y': "REFINED", 'z': "REFINED"})
+    for coordinates_src_target in list_of_coordinate_pairs:
+        coor_src = coordinates_src_target[0]
+        coor_trgt = coordinates_src_target[1]
+        for x in range(-start, start+1, interval):
+            for y in range(-start, start+1, interval):
+                for z in range(-start, start+1, interval):
+                    # we need to include the centre of the volume as rotation centre = cog1
+                    init_transform = create_transform(coor_trgt - coor_src, x, y, z, coor_src)
+                    init_resampled = resample_volume(source, target, init_transform)
+                    transform = minctracc(init_resampled, target, mask, stepsize=stepsize,
+                                          wtranslations=wtranslations, simplex=simplex)
+                    resampled = resample_volume(init_resampled, target, transform)
+                    conc_transform = concat_transforms(init_transform, transform)
+                    xcorr = compute_xcorr(resampled, targetvol, maskvol)
+                    if isnan(xcorr):
+                        xcorr = 0
+                    results.append({'xcorr': xcorr, 'transform': conc_transform, \
+                                    'resampled': resampled, 'x': x, \
+                                    'y': y, 'z': z})
+                    if xcorr > best_xcorr:
+                        best_xcorr = xcorr
+                    else:
+                        os.remove(resampled)
+                    os.remove(init_resampled)
+                    print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
+    
     sort_results(results)
     targetvol.closeVolume()
     if mask is not None:
@@ -163,9 +258,9 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
 def dict_extract(adict, akey):
     return adict[akey]
 
-def sort_results(results):
+def sort_results(results, reverse_order=False):
     sort_key_func = functools.partial(dict_extract, akey="xcorr")
-    results.sort(key=sort_key_func)
+    results.sort(key=sort_key_func, reverse=reverse_order)
 
 def downsample(infile, stepsize):
     output = get_tempfile(".mnc")
@@ -183,28 +278,43 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, termtrapper)
 
     parser = ArgumentParser()
-
     parser.add_argument("-m", "--mask", dest="mask",
                       help="mask to use for computing xcorr", type=str)
     parser.add_argument("-s", "--stepsizeresample", dest="resamplestepsize",
-                      help="resampled volumes to this stepsize",
+                      help="resampled volumes to this stepsize [default = %(default)s]",
                       type=float, default=0.2)
     parser.add_argument("-g", "--stepsizeregistration", dest="registrationstepsize",
-                      help="use this stepsize in the minctracc registration",
+                      help="use this stepsize in the minctracc registration [default = %(default)s]",
                       type=float, default=0.6)
     parser.add_argument("-t", "--tempdir", dest="tmpdir",
                       help="temporary directory to use",
                       type=str)
     parser.add_argument("-r", "--range", dest="range",
-                      help="range of rotations to search across",
+                      help="range of rotations to search across [default = %(default)s]",
                       type=int, default=50)
     parser.add_argument("-i", "--interval", dest="interval",
-                      help="interval (in degrees) to search across range",
+                      help="interval (in degrees) to search across range [default = %(default)s]",
                       type=int, default=10)
     parser.add_argument("-w", "--wtranslations", dest="wtranslations",
-                      help="Comma separated list of optimization weights of translations in x, y, z for minctracc",
+                      help="Comma separated list of optimization weights of translations in "
+                           "x, y, z for minctracc [default = %(default)s]",
                       type=str, default="0.2,0.2,0.2")
-    parser.add_argument("--simplex", dest="simplex", help="Radius of minctracc simplex volume", type=float, default=1)
+    parser.add_argument("--simplex", dest="simplex", type=float, default=1, 
+                        help="Radius of minctracc simplex volume [default = %(default)s]")
+    parser.set_defaults(use_multiple_seeds=True)
+    parser.add_argument("--use-multiple-seeds", dest="use_multiple_seeds", action="store_true",
+                        help="Find multiple possible starting points in the source and target for "
+                             "the initial alignment in addition to using only the centre of gravity "
+                             "(of the intensities) of the input files. [default = %(default)s]")
+    parser.add_argument("--no-use-multiple-seeds", dest="use_multiple_seeds", action="store_false",
+                        help="Opposite of --use-multiple-seeds")
+    parser.set_defaults(max_number_seeds=5)
+    parser.add_argument("--max-number-seeds", dest="max_number_seeds", type=int,
+                        help="Specify the maximum number of seed-pair starting points "
+                        "to use for the rotational part of the code. The seed "
+                        "pairs are ordered based on the cross correlation gotten "
+                        "from the alignment based on only the translation from the "
+                        "seed point. [default = %(default)s]")
     parser.add_argument("source", help="", type=str, metavar="source.mnc")
     parser.add_argument("target", help="", type=str, metavar="target.mnc")
     parser.add_argument("output_xfm", help="", type=str, metavar="output.xfm")
@@ -230,12 +340,17 @@ if __name__ == "__main__":
         # downsample the mask only if it is specified
         if options.mask:
             options.mask = downsample(options.mask, options.resamplestepsize)
-    if options.mask:
-        results = loop_rotations(options.registrationstepsize, source, target, options.mask, start=options.range,
-                                 interval=options.interval, wtranslations=options.wtranslations, simplex=options.simplex)
-    else:
-        results = loop_rotations(options.registrationstepsize, source, target, None, start=options.range,
-                                 interval=options.interval, wtranslations=options.wtranslations, simplex=options.simplex)
+    
+    results = loop_rotations(stepsize=options.registrationstepsize, 
+                             source=source,
+                             target=target,
+                             mask=options.mask, 
+                             start=options.range,
+                             interval=options.interval, 
+                             wtranslations=options.wtranslations, 
+                             simplex=options.simplex,
+                             use_multiple_seeds=options.use_multiple_seeds,
+                             max_number_seeds=options.max_number_seeds)
     
     print(results)
     subprocess.check_call(("cp %s %s" % (results[-1]["transform"], output_xfm)).split())
