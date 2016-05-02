@@ -94,6 +94,14 @@ def get_distance_transform_peaks(input_file, peak_distance):
     subprocess.check_call(("find_peaks -pos_only -min_distance %s %s %s" % (peak_distance, distance_transform, peak_tags)).split())
     all_coors = get_coordinates_from_tag_file(peak_tags)
     return all_coors
+    
+def get_blur_peaks(input_file, blur_kernel, peak_distance):
+    blurred_input = get_tempfile('_blur.mnc')
+    subprocess.check_call(("mincblur -no_apo -fwhm %s %s %s" % (blur_kernel, input_file, blurred_input.split('_blur.mnc')[0])).split())
+    peak_tags = get_tempfile('.tag')
+    subprocess.check_call(("find_peaks -pos_only -min_distance %s %s %s" % (peak_distance, blurred_input, peak_tags)).split())
+    all_coors = get_coordinates_from_tag_file(peak_tags)
+    return all_coors
 
 def compute_xcorr(sourcefile, targetvol, maskvol):
     try:
@@ -185,16 +193,27 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
     #    between peaks is based on the stepsize used for the
     #    registrations
     if use_multiple_seeds:
-        list_source_peaks = get_distance_transform_peaks(input_file=source, peak_distance=stepsize*10)
-        print("\n\nPeaks found in the source image:")
+        list_source_peaks = get_distance_transform_peaks(input_file=source, peak_distance=stepsize)
+        print("\n\nPeaks found in the source image (Distance Transform):")
         for coor_src in list_source_peaks:
             print(coor_src)
+        # also add peaks from the blurred version of the input file
+        blurred_peaks_source = get_blur_peaks(input_file=source, blur_kernel=stepsize, peak_distance=stepsize)
+        print("\n\nPeaks found in the source image (blurrred image):")
+        for coor_src in blurred_peaks_source:
+            print(coor_src)
+            list_source_peaks.append(coor_src)
         # also add the center of gravity of the source image
         list_source_peaks.append(cog_source)
-        list_target_peaks = get_distance_transform_peaks(input_file=target, peak_distance=stepsize*10)
-        print("\n\nPeaks found in the target image:")
+        list_target_peaks = get_distance_transform_peaks(input_file=target, peak_distance=stepsize)
+        print("\n\nPeaks found in the target image (Distance Transform):")
         for coor_trgt in list_target_peaks:
             print(coor_trgt)
+        blurred_peaks_target = get_blur_peaks(input_file=target, blur_kernel=stepsize, peak_distance=stepsize)
+        print("\n\nPeaks found in the target image (blurrred image):")
+        for coor_target in blurred_peaks_target:
+            print(coor_target)
+            list_target_peaks.append(coor_target)
         # same for the target; add the center of gravity:
         list_target_peaks.append(cog_target)
         for source_coor in list_source_peaks:
@@ -244,12 +263,16 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                                     'y': y, 'z': z})
                     if xcorr > best_xcorr:
                         best_xcorr = xcorr
-                    else:
-                        os.remove(resampled)
+                    # had some issues with the resampled file being gone...
+                    # we'll just resample the final file only at the end
+                    os.remove(resampled)
                     os.remove(init_resampled)
                     print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
     
     sort_results(results)
+    # resample the best result:
+    final_resampled = resample_volume(source, target, results[-1]["transform"])
+    results[-1]["resampled"] = final_resampled
     targetvol.closeVolume()
     if mask is not None:
         maskvol.closeVolume()
@@ -308,7 +331,7 @@ if __name__ == "__main__":
                              "(of the intensities) of the input files. [default = %(default)s]")
     parser.add_argument("--no-use-multiple-seeds", dest="use_multiple_seeds", action="store_false",
                         help="Opposite of --use-multiple-seeds")
-    parser.set_defaults(max_number_seeds=5)
+    parser.set_defaults(max_number_seeds=3)
     parser.add_argument("--max-number-seeds", dest="max_number_seeds", type=int,
                         help="Specify the maximum number of seed-pair starting points "
                         "to use for the rotational part of the code. The seed "
