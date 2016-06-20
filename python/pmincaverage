@@ -5,7 +5,10 @@ from numpy import *
 from argparse import ArgumentParser
 import os.path
 import sys
-import Queue
+try:
+    import queue
+except:
+    import Queue as queue
 
 def getslice(volhandle, slice, q,nslices):
     """collects hyperslabs for a particular volume handle. Designed to
@@ -94,7 +97,7 @@ if __name__ == "__main__":
 
         # without multiprocessing, this queueing stuff probably doesn't make sense -- simplify
         print("SLICE: %i" % i)
-        q = Queue.Queue()
+        q = queue.Queue()
         for j in range(nfiles):
             t = getslice(j,i,q,nslices)
 
