@@ -5,7 +5,10 @@ from numpy import *
 from argparse import ArgumentParser
 import os.path
 import sys
-import multiprocessing as mp
+try:
+    import queue
+except:
+    import Queue as queue
 
 def getslice(volhandle, slice, q,nslices):
     """collects hyperslabs for a particular volume handle. Designed to
@@ -77,8 +80,6 @@ if __name__ == "__main__":
                              volhandles[0].sizes[3]))
 
     # loop over all slices
-    p = mp.Pool(processes=1)
-    manager = mp.Manager()
     for i in range(0,volhandles[0].sizes[sliceIndex],nslices):
         # last set might have less than n-slices - adjust.
         if (i + nslices) > volhandles[0].sizes[sliceIndex]:
@@ -93,14 +94,12 @@ if __name__ == "__main__":
                                      nslices,
                                      volhandles[0].sizes[2],
                                      volhandles[0].sizes[3]))
-                
-        print("SLICE: %i" % i)
-        # use parallel processing to get the slice data
-        q = manager.Queue()
-        for j in range(nfiles):
-            t = p.apply_async(getslice, (j,i,q,nslices))
 
-        t.get() # seems to be necessary as a sort of waitpid call ...
+        # without multiprocessing, this queueing stuff probably doesn't make sense -- simplify
+        print("SLICE: %i" % i)
+        q = queue.Queue()
+        for j in range(nfiles):
+            t = getslice(j,i,q,nslices)
 
         # retrieve the data from the queue
         while not q.empty():
