@@ -1,3 +1,16 @@
+New in Version 0.1.15
+=====================
+* fairly big overhaul of rotational_minctracc.py: it turns out that the centre of gravity (cog)
+  of the two input files to rotational_minctracc.py do not always reflect the same part of the 
+  object. In those cases, the alignment most likely will fail because a mask is used, and 
+  representative areas of the input files might not even be compared. For this reason 
+  rotation_minctracc.py now also runs a "translational" part. Multiple centers of gravity
+  are determined which serve as seeds for the initial translational alignment. All possible
+  pairs of seeds are tried and by default the best 3 pairs are used for the rotational part
+  of the code.
+* some more Python3 compatibility related fixes
+* added options for minc_label_ops
+
 New in Version 0.1.14
 =====================
 * completely remove the multiprocessing machinery from pmincaverage since this caused extra processes
