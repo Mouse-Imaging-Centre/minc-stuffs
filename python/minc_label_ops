@@ -19,6 +19,10 @@ if __name__ == "__main__":
     parser.add_option("--merge", dest="merge",
                       help="Second label file to whose labels are to be merged with the input_labels",
                       type="string")
+    parser.add_option("--replace-all-different", dest="replace_all_different",
+                      help="Similar to the --merge option, but in this case, when the given "
+                      "file is zero, and the other input is not, it will be set to zero. "
+                      "The idea is that the fixes include voxels that were actually background.")
     parser.add_option("--remap", dest="remap",
                       help="Label numbers to replace with new label numbers. For example, to turn label 3 into label 11, it would be --remap 3:11. More than one can be specified at once, separated by commas, i.e. --remap 3:11,21:55. It is also possible to specify a range of values to be remapped as follows: to map 3,4,5,6,7, and 8 onto the value 11, specify --remap 3-8:11. This can also be combined: --remap 3-8:11,66:98.",
                       type="string")
@@ -31,18 +35,28 @@ if __name__ == "__main__":
     parser.add_option("--mask", dest="mask",
                       help="Erase all labels where mask >0.5",
                       type="string")
+    parser.add_option("--diff", help="Output all voxels (binary) that differ between the two input files (difference labels are taken from the first input file)", action="store_true", default=False)
     parser.add_option("--binarize", help="threshold >0.5 and binarize output", action="store_true", default=False)
     parser.add_option("-v", "--verbose", help='verbose output', action='store_true', default=False)
 
     (options, args) = parser.parse_args()
 
-    if len(args) != 2:
+    if not options.diff and len(args) != 2:
         parser.error("Incorrect number of arguments")
     
 
-    inlabels = volumeFromFile(args[0], dtype='ushort')
-    outlabels = volumeLikeFile(args[0], args[1], dtype='ushort', 
-                               volumeType="ushort", labels=True)
+    if options.diff and len(args) != 3:
+        parser.error("Incorrect number of arguments. Please specify two input label files and an output label file to hold the difference between the two input files")
+    
+    if not options.diff:
+        inlabels = volumeFromFile(args[0], dtype='ushort')
+        outlabels = volumeLikeFile(args[0], args[1], dtype='ushort', 
+                                   volumeType="ushort", labels=True)
+    else:
+        inlabels_1 = volumeFromFile(args[0], dtype='ushort')
+        inlabels_2 = volumeFromFile(args[1], dtype='ushort')
+        outlabels  = volumeLikeFile(args[0], args[2], dtype='ushort', 
+                                    volumeType="ushort", labels=True)
 
     if options.verbose:
         print("Labels found in input: %s" % unique(inlabels.data[::]))
@@ -98,6 +112,11 @@ if __name__ == "__main__":
         outlabels.data[::] = inlabels.data[::] + addlabels.data[::]
         addlabels.closeVolume()
     
+    if options.replace_all_different:
+        addlabels = volumeFromFile(options.replace_all_different, dtype='ushort', labels=True)
+        outlabels.data = where(addlabels.data != inlabels.data, addlabels.data, inlabels.data)
+        addlabels.closeVolume()
+    
     if options.mask:
         maskforlabels = volumeFromFile(options.mask, dtype='ushort')
         # initially copy over input labels
@@ -106,11 +125,19 @@ if __name__ == "__main__":
         outlabels.data[maskforlabels.data > 0.5] = 0
         maskforlabels.closeVolume()
     
+    if options.diff:
+        outlabels.data = where(inlabels_1.data != inlabels_2.data, 1, 0)
+        
+    
     if options.binarize:
         outlabels.data[inlabels.data > 0.5] = 1
 
     # write to file
     outlabels.writeFile()
     outlabels.closeVolume()
-    inlabels.closeVolume()
+    if not options.diff:
+        inlabels.closeVolume()
+    else:
+        inlabels_1.closeVolume()
+        inlabels_2.closeVolume()
 
