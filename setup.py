@@ -5,7 +5,7 @@ from setuptools import setup
 import sys
 
 setup(name="python-stuffs",
-      version='0.1.14',
+      version='0.1.15',
       scripts=["python/TFCE",
                "python/smooth_vector",
                "python/measure_xcorr",
@@ -15,6 +15,6 @@ setup(name="python-stuffs",
                "python/volumes_from_labels_only",
                "python/voxel_vote",
                "python/replace_label_with_nearest_valid_label",
-               "python/rotational_minctracc.py"]
-      #         "minc-scripts-jscholz/vtk_meshconvert.py"],
+               "python/rotational_minctracc.py",
+               "minc-scripts-jscholz/vtk_meshconvert.py"],
       )
