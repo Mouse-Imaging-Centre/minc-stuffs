@@ -8,6 +8,7 @@ AC_DEFUN([mni_REQUIRE_MINC],
     mni_REQUIRE_LIB(netcdf,[#include <netcdf.h>],[int i = ncopen("",0);])
     if test "$with_minc2" = "yes"; then
         mni_REQUIRE_LIB(z,[#include <zlib.h>],[int f = compress2;])
+        mni_REQUIRE_LIB(dl,[#include <dlfcn.h>],[int f = dlopen("",0)])
         mni_REQUIRE_LIB(hdf5,[#include <hdf5.h>],[int f = H5Fopen("",0,H5P_DEFAULT);])
         mni_REQUIRE_LIB(minc2,[#include <minc.h>],[int i = miicv_create();])
         AC_DEFINE([MINC2], 1, [Define if should build with MINC 2.0])
