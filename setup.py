@@ -5,7 +5,7 @@ from setuptools import setup
 import sys
 
 setup(name="python-stuffs",
-      version='0.1.16',
+      version='0.1.17',
       scripts=["python/TFCE",
                "python/smooth_vector",
                "python/measure_xcorr",
