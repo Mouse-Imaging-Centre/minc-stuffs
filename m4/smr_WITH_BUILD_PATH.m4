@@ -22,7 +22,7 @@ AC_DEFUN([smr_WITH_BUILD_PATH],
 	for d in `echo $withval | tr : ' '`; do
             test -d $d || AC_MSG_ERROR([build path $d not found.])
 	    test -d $d/include && CPPFLAGS="$CPPFLAGS -I$d/include"
-	    test -d $d/lib && LDFLAGS="$LDFLAGS -L$d/lib"
+	    test -d $d/lib && LDFLAGS="$LDFLAGS -L$d/lib -Wl,-rpath,$d/lib"
 	done
     ])
 ])

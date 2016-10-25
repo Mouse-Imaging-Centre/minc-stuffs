@@ -1,3 +1,8 @@
+New in Version 0.1.17
+=====================
+* fix bug in TFCE implementation
+* fix linking on OS X
+
 New in Version 0.1.16
 =====================
 * fix compilation against static HDF5 libs

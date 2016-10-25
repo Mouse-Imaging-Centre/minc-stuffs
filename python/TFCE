@@ -7,7 +7,7 @@ from numpy import *
 import operator
 
 
-def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0):
+def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0, negative = False):
     #infile = "1.mnc"
     #out = "1-tfce.mnc"
 
@@ -43,7 +43,11 @@ def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0):
                      if (labeled(x,y,z) > 0) {
                         int e = labeled(x,y,z);
                         //std::cout << data(x,y,z) << " " << h << " " << sizes(e) << std::endl;
-                        data(x,y,z) = data(x,y,z) + (pow(h, H) * pow(sizes(e), E) * dh);
+                        if(negative == 1){
+                          data(x,y,z) = data(x,y,z) - (pow(h, H) * pow(sizes(e), E) * dh);
+                        } else {
+                          data(x,y,z) = data(x,y,z) + (pow(h, H) * pow(sizes(e), E) * dh);
+                        }
                         //data(x,y,z) = n;
             }}}}
             """
@@ -52,7 +56,7 @@ def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0):
             labeled = l[0]
             
             weave.inline(code, ['data', 'nx', 'ny', 'nz', 'labeled', 'h',
-                                'H', 'E', 'sizes', 'dh'],
+                                'H', 'E', 'sizes', 'dh', 'negative'],
                          type_converters=weave.converters.blitz,
                          compiler='gcc')
                
@@ -101,7 +105,7 @@ Smith and Nichols. Threshold-free cluster enhancement: addressing problems of sm
         tfce(invol, outvol, options.dh, options.E, options.H)
     if options.pos_and_neg == "both" or options.pos_and_neg == "neg":
         invol.data = invol.data * -1
-        tfce(invol, outvol, options.dh, options.E, options.H)
+        tfce(invol, outvol, options.dh, options.E, options.H, negative = True)
     
     outvol.writeFile()
     outvol.closeVolume()
