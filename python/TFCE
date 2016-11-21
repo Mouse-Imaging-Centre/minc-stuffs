@@ -5,6 +5,7 @@ from pyminc.volumes.factory import *
 from scipy import ndimage, weave
 from numpy import *
 import operator
+from functools import reduce
 
 
 def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0, negative = False):
@@ -26,16 +27,16 @@ def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0, negative = False):
         
         # connected components labelling
         l = ndimage.label(thresh)
-        print "L:", l[1]
+        print("L:", l[1])
         # compute the size of each label
-        sizes = array(ndimage.sum(thresh, l[0], range(l[1]+1)))
+        sizes = array(ndimage.sum(thresh, l[0], list(range(l[1]+1))))
         # modulate label size by voxel volume
         sizes = sizes * reduce(operator.mul, invol.separations)
-        print "sizes", sizes.shape
+        print("sizes", sizes.shape)
 
         # compute TFCE
         if l[1] > 0:
-            print "inside", h, l[1]
+            print("inside", h, l[1])
             code = """
             for (int x=0; x < nx; ++x) {
                for (int y=0; y < ny; ++y) {
@@ -60,7 +61,7 @@ def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0, negative = False):
                          type_converters=weave.converters.blitz,
                          compiler='gcc')
                
-        print h
+        print(h)
     #outvol.writeFile()
     #outvol.closeVolume()
 
