@@ -5,7 +5,8 @@ from setuptools import setup
 import sys
 
 setup(name="python-stuffs",
-      version='0.1.15',
+      version='0.1.19',
+      install_requires=['numpy', 'scipy', 'pyminc'],
       scripts=["python/TFCE",
                "python/smooth_vector",
                "python/measure_xcorr",

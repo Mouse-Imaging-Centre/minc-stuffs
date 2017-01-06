@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     result = compute_xcorr(sourcevol, targetvol, options.mask)
 
-    print result
+    print(result)
 
     
 

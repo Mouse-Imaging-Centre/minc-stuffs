@@ -1,3 +1,22 @@
+New in Version 0.1.19
+=====================
+* added script: make_xfm_for_grid.pl which creates an xfm file for a provided deformation grid
+  (vector file)
+
+New in Version 0.1.18
+=====================
+* 2to3 fixes
+* fix `install_requires` in setup.py
+
+New in Version 0.1.17
+=====================
+* fix bug in TFCE implementation
+* fix linking on OS X
+
+New in Version 0.1.16
+=====================
+* fix compilation against static HDF5 libs
+
 New in Version 0.1.15
 =====================
 * fairly big overhaul of rotational_minctracc.py: it turns out that the centre of gravity (cog)
