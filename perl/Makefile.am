@@ -1,4 +1,4 @@
-bin_SCRIPTS = lin_from_nlin scale_voxels add_noise_to_volume grid_object_manipulator ray_trace_crosshair concatenate_tags
+bin_SCRIPTS = lin_from_nlin scale_voxels add_noise_to_volume grid_object_manipulator ray_trace_crosshair concatenate_tags make_xfm_for_grid.pl
 
 grid_object_manipulator: grid_object_manipulator
 	sed < $< > $@-t \
