@@ -241,7 +241,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
             print(list_of_coordinate_pairs)
     
     results = []
-    best_xcorr = 0
+    #best_xcorr = 0
     for coordinates_src_target in list_of_coordinate_pairs:
         coor_src = coordinates_src_target[0]
         coor_trgt = coordinates_src_target[1]
@@ -258,21 +258,34 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     xcorr = compute_xcorr(resampled, targetvol, maskvol)
                     if isnan(xcorr):
                         xcorr = 0
-                    results.append({'xcorr': xcorr, 'transform': conc_transform, \
-                                    'resampled': resampled, 'x': x, \
-                                    'y': y, 'z': z})
-                    if xcorr > best_xcorr:
-                        best_xcorr = xcorr
+                    results.append({'xcorr': xcorr, 'transform': conc_transform,
+                                    'resampled': resampled, 'xrot': x,
+                                    'yrot': y, 'zrot': z, 'coor_src' : coor_src, 'coor_trgt' : coor_trgt })
+                    #if xcorr > best_xcorr:
+                    #    best_xcorr = xcorr
                     # had some issues with the resampled file being gone...
                     # we'll just resample the final file only at the end
                     os.remove(resampled)
                     os.remove(init_resampled)
+                    os.remove(conc_transform)
                     print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
     
     sort_results(results)
     # resample the best result:
-    final_resampled = resample_volume(source, target, results[-1]["transform"])
+    # TODO this is the same code as the inner loop above -- make a procedure?
+    best = results[-1]
+    best_init_transform = create_transform(best['coor_trgt'] - best['coor_src'],
+                                           best['xrot'], best['yrot'], best['zrot'],
+                                           best['coor_src'])
+    best_init_resampled = resample_volume(source, target, best_init_transform)
+    best_transform = minctracc(best_init_resampled, target, mask, stepsize=stepsize,
+                                          wtranslations=wtranslations, simplex=simplex)
+    best_resampled = resample_volume(best_init_resampled, target, best_transform)
+    best_conc_transform = concat_transforms(best_init_transform, best_transform)
+    final_resampled = resample_volume(source, target, best_conc_transform)
+    #final_resampled = resample_volume(source, target, results[-1]["transform"])
     results[-1]["resampled"] = final_resampled
+    results[-1]["transform"] = best_conc_transform
     targetvol.closeVolume()
     if mask is not None:
         maskvol.closeVolume()
