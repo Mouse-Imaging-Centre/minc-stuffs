@@ -11,6 +11,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import math
 
 
 def get_tempfile(suffix):
@@ -115,6 +116,23 @@ def compute_xcorr(sourcefile, targetvol, maskvol):
     f3 = 0
     
     if maskvol is not None:
+        # we've had issues with mask files that after 
+        # running autocrop on them, only contain "nan"
+        # values. This seems to happen when the original
+        # mask has a valid image range indicated as:
+        # image: unsigned short 1 to 1
+        # when that happens, all following calculations 
+        # fail, so we should quit:
+        if math.isnan(maskvol.data.sum()):
+            # clean up...
+            shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
+            raise ValueError("\n\n* * * * * * * * * *\n"
+                  "Error: the mask volume is corrupted. No values are found inside the mask.\n"
+                  "probably you are using a mask with only the value 1 in it, but which at the same\n"
+                  "time has a valid range of 1 to 1 . You can check this using mincinfo.\n"
+                  "You need to generate a new mask. To produce a full field of view mask for file.mnc\n"
+                  "run:\n\nminccalc -expression if(true){out = 1;} file.mnc file_mask.mnc\n"
+                  "* * * * * * * * * *\n")
         f1 = sum(sourcevol.data[maskvol.data > 0.5] * \
              targetvol.data[maskvol.data > 0.5])
         f2 = sum(sourcevol.data[maskvol.data > 0.5] ** 2)
