@@ -195,7 +195,9 @@ def get_cross_correlation_from_coordinate_pair(source_img, target_img, target_vo
     transform_from_coordinates = create_transform(coordinate_pair[1] - coordinate_pair[0], 0, 0, 0, coordinate_pair[0])
     resampled_source = resample_volume(source_img, target_img, transform_from_coordinates)
     xcorr = compute_xcorr(resampled_source, target_vol, mask)
+    # clean up. We do not need either the MINC file nor the transform anymore
     os.remove(resampled_source)
+    os.remove(transform_from_coordinates)
     return float(xcorr)
     
 def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, 
@@ -292,6 +294,8 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     os.remove(resampled)
                     os.remove(init_resampled)
                     os.remove(conc_transform)
+                    os.remove(init_transform)
+                    os.remove(transform)
                     print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
     
     sort_results(results)
