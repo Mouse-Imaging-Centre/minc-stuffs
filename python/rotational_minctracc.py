@@ -334,12 +334,14 @@ def downsample(infile, stepsize):
 # clean up tmp on soft kill signal
 def termtrapper(signum, frame):
     print("got kill signal")
-    os.removedirs("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
+    shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
+    print("\n\nWent down gracefully!\n")
     exit(1)
 
 if __name__ == "__main__":
     # handle soft kill signal to clean up tmp
     signal.signal(signal.SIGTERM, termtrapper)
+    signal.signal(signal.SIGINT, termtrapper)
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--mask", dest="mask",
