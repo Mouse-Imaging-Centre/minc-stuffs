@@ -307,7 +307,8 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                                            best['coor_src'])
     best_init_resampled = resample_volume(source, target, best_init_transform)
     best_transform = minctracc(best_init_resampled, target, mask, stepsize=stepsize,
-                                          wtranslations=wtranslations, simplex=simplex)
+                                          wtranslations=wtranslations, simplex=simplex,
+                                          use_lsq12_for_alignment=use_lsq12_for_alignment)
     best_resampled = resample_volume(best_init_resampled, target, best_transform)
     best_conc_transform = concat_transforms(best_init_transform, best_transform)
     final_resampled = resample_volume(source, target, best_conc_transform)
