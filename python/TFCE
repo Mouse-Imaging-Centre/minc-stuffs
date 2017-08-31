@@ -1,113 +1,107 @@
 #!/usr/bin/env python
 
-from optparse import OptionParser
-from pyminc.volumes.factory import *
-from scipy import ndimage, weave
-from numpy import *
+from argparse import ArgumentParser
+from scipy import ndimage
+import numpy as np
 import operator
 from functools import reduce
+from math import pow
 
+import pyminc.volumes.factory as vf
 
 def tfce(invol, outvol, dh=0.1, E=0.5, H=2.0, negative = False):
-    #infile = "1.mnc"
-    #out = "1-tfce.mnc"
 
-    #invol = volumeFromFile(infile)
-    #outvol = volumeFromInstance(invol, outfile, volumeType="ushort")
+    # note: there are some silly state/aliasing issues lurking here,
+    # e.g. we can't call outvol.loadData() here since this will destroy the result of
+    # the first (positive) TFCE call which is stored in outvol.data ...
+    # really the interface to the `tfce` procedure should be changed so that it returns
+    # the data ...
+    data = outvol.data
 
-    #dh = 0.1
-    #E = 0.5
-    #H = 2.0
-    outvol.data #make sure data has been loaded
-    
     # step through data with dh increments
-    for h in arange(0, invol.data.max(), dh):
+    for h in np.arange(0, invol.data.max(), dh):
         # threshold the data with current height
-        thresh = array( invol.data > h, "uint8")
-        
+        thresh = np.array( invol.data > h, "uint8")
+
         # connected components labelling
         l = ndimage.label(thresh)
         print("L:", l[1])
         # compute the size of each label
-        sizes = array(ndimage.sum(thresh, l[0], list(range(l[1]+1))))
+        sizes = np.array(ndimage.sum(thresh, l[0], list(range(l[1]+1))))
         # modulate label size by voxel volume
         sizes = sizes * reduce(operator.mul, invol.separations)
         print("sizes", sizes.shape)
 
         # compute TFCE
         if l[1] > 0:
+
             print("inside", h, l[1])
-            code = """
-            for (int x=0; x < nx; ++x) {
-               for (int y=0; y < ny; ++y) {
-                  for (int z=0; z < nz; ++z) {
-                     if (labeled(x,y,z) > 0) {
-                        int e = labeled(x,y,z);
-                        //std::cout << data(x,y,z) << " " << h << " " << sizes(e) << std::endl;
-                        if(negative == 1){
-                          data(x,y,z) = data(x,y,z) - (pow(h, H) * pow(sizes(e), E) * dh);
-                        } else {
-                          data(x,y,z) = data(x,y,z) + (pow(h, H) * pow(sizes(e), E) * dh);
-                        }
-                        //data(x,y,z) = n;
-            }}}}
-            """
-            data = outvol.data
-            nx,ny,nz = data.shape
+
             labeled = l[0]
-            
-            weave.inline(code, ['data', 'nx', 'ny', 'nz', 'labeled', 'h',
-                                'H', 'E', 'sizes', 'dh', 'negative'],
-                         type_converters=weave.converters.blitz,
-                         compiler='gcc')
-               
+            mask = labeled > 0
+
+            szs = sizes[labeled[mask]]
+            update_vals = (pow(h, H) * dh) * np.power(szs, E)
+
+            # conceptually one could write things more simply as follows:
+            #update = pow(h, H) * dh * np.power(sizes[labeled], E) * mask
+            #if negative:
+            #    data -= update
+            # but this misses the 'if labeled > 0' optimization
+            # and performs lookup and exponentiation over the whole volume
+            # giving ~2x slowdown; the current code seems roughly as fast
+            # as the old `weave` version
+
+            if negative:
+                data[mask] -= update_vals
+            else:
+                data[mask] += update_vals
+
         print(h)
-    #outvol.writeFile()
-    #outvol.closeVolume()
+    outvol.data = data
+
 
 if __name__ == "__main__":
-    
-    usage = "usage: %prog [options] input.mnc output.mnc"
+
     description = """
 Applies the texture free cluster enhancement (TFCE) to a statistics image. See:
 Smith and Nichols. Threshold-free cluster enhancement: addressing problems of smoothing, threshold dependence and localisation in cluster inference. NeuroImage (2009) vol. 44 (1) pp. 83-98
     """
-    parser = OptionParser(usage=usage, description=description)
-    
-    parser.add_option("-d", "--dh", dest="dh",
-                      help="Increments over which to compute TFCE [default: %default]",
-                      type="float", default=0.1)
-    parser.add_option("-E", dest="E",
-                      help="Power by which to raise the extent [default: %default]",
-                      type="float", default=0.5)
-    parser.add_option("-H", dest="H",
-                      help="Power by which to raise the height [default: %default]",
-                      type="float", default=2.0)
-    parser.add_option("--pos-and-neg", dest="pos_and_neg",
-                      help="Use both positive and negative data in input [default]",
-                      action="store_const", const="both", default="both")
-    parser.add_option("--pos-only", dest="pos_and_neg",
-                      help="Use only positive data in input",
-                      action="store_const", const="pos")
-    parser.add_option("--neg-only", dest="pos_and_neg",
-                      help="Use only negative data in input",
-                      action="store_const", const="neg")
-    
-    (options, args) = parser.parse_args()
-    
-    if len(args) !=2:
-        parser.error("Incorrect number of arguments")
-    
-        
-    invol = volumeFromFile(args[0])
-    outvol = volumeFromInstance(invol, args[1], dtype='ushort')
-    
+    parser = ArgumentParser(description=description)
+
+    parser.add_argument("-d", "--dh", dest="dh",
+                        help="Increments over which to compute TFCE [default: %(default)s]",
+                        type=float, default=0.1)
+    parser.add_argument("-E", dest="E",
+                        help="Power by which to raise the extent [default: %(default)s]",
+                        type=float, default=0.5)
+    parser.add_argument("-H", dest="H",
+                        help="Power by which to raise the height [default: %(default)s]",
+                        type=float, default=2.0)
+    parser.add_argument("--pos-and-neg", dest="pos_and_neg",
+                        help="Use both positive and negative data in input [default]",
+                        action="store_const", const="both", default="both")
+    parser.add_argument("--pos-only", dest="pos_and_neg",
+                        help="Use only positive data in input",
+                        action="store_const", const="pos")
+    parser.add_argument("--neg-only", dest="pos_and_neg",
+                        help="Use only negative data in input",
+                        action="store_const", const="neg")
+    parser.add_argument("invol", help="input .mnc volume")
+    parser.add_argument("outvol", help="output .mnc volume")
+
+
+    options = parser.parse_args()
+
+    invol = vf.volumeFromFile(options.invol)
+    outvol = vf.volumeFromInstance(invol, options.outvol, dtype='ushort')
+
     if options.pos_and_neg == "both" or options.pos_and_neg == "pos":
-        tfce(invol, outvol, options.dh, options.E, options.H)
+        tfce(invol, outvol, dh=options.dh, E=options.E, H=options.H)
     if options.pos_and_neg == "both" or options.pos_and_neg == "neg":
-        invol.data = invol.data * -1
-        tfce(invol, outvol, options.dh, options.E, options.H, negative = True)
-    
+        invol.data *= -1
+        tfce(invol, outvol, dh=options.dh, E=options.E, H=options.H, negative = True)
+
     outvol.writeFile()
     outvol.closeVolume()
-        
+
