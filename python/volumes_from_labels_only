@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     for l in labels:
         voxelsPerLabel = len(atlas.data[atlas.data == l])
-	volumePerLabel = volumePerVoxel*voxelsPerLabel
+        volumePerLabel = volumePerVoxel*voxelsPerLabel
         output.write(str(int(l)) + ", " + str(volumePerLabel) +  "\n")
 
     atlas.closeVolume()

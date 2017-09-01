@@ -1,3 +1,19 @@
+New in Version 0.1.21
+=====================
+* TFCE rewritten to use numpy instead of weave, which doesn't support Python 3
+
+New in Version 0.1.20
+=====================
+* rotational_minctracc.py does not keep any intermediate files anymore; everything is deleted
+  during the process, and the final transformation is re-created at the end.
+* rotational_minctracc.py now can also handle ctrl-c (SIGINT) in its cleanup.
+* rotational_minctracc.py can be used for lsq12 instead of lsq6 brute force alignment
+
+New in Version 0.1.19
+=====================
+* added script: make_xfm_for_grid.pl which creates an xfm file for a provided deformation grid
+  (vector file)
+
 New in Version 0.1.18
 =====================
 * 2to3 fixes
