@@ -1,3 +1,7 @@
+New in Version 0.1.21
+=====================
+* TFCE rewritten to use numpy instead of weave, which doesn't support Python 3
+
 New in Version 0.1.20
 =====================
 * rotational_minctracc.py does not keep any intermediate files anymore; everything is deleted
