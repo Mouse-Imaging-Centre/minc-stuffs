@@ -2,66 +2,66 @@
 
 from pyminc.volumes.factory import *
 from numpy import *
-from optparse import OptionParser
+from argparse import ArgumentParser
 import re as re
 
 
 if __name__ == "__main__":
 
-    usage = "usage: %prog [options] input_labels.mnc output_labels.mnc"
-    description = """write description here"""
+    parser = ArgumentParser()
 
-    parser = OptionParser(usage=usage, description=description)
+    # TODO make the different options (which are actually exclusive) exclusive!
+    parser.add_argument("--convert", dest="convert",
+                        help="Convert input file to labels.",
+                        action="store_true", default=False)
+    parser.add_argument("--merge", dest="merge",
+                        help="Second label file to whose labels are to be merged with the input_labels",
+                        type=str)
+    parser.add_argument("--replace-all-different", dest="replace_all_different",
+                        help="Similar to the --merge option, but in this case, when the given "
+                        "file is zero, and the other input is not, it will be set to zero. "
+                        "The idea is that the fixes include voxels that were actually background.")
+    parser.add_argument("--remap", dest="remap",
+                        help="Label numbers to replace with new label numbers. For example, to turn label 3 into label 11, it would be --remap 3:11. More than one can be specified at once, separated by commas, i.e. --remap 3:11,21:55. It is also possible to specify a range of values to be remapped as follows: to map 3,4,5,6,7, and 8 onto the value 11, specify --remap 3-8:11. This can also be combined: --remap 3-8:11,66:98.",
+                        type=str)
+    parser.add_argument("--select", dest="select",
+                        help="Label numbers to select (comma separated, i.e. 3,7,211) - outfile will be just these labels",
+                        type=str)
+    parser.add_argument("--remove", dest="remove",
+                        help="Label numbers to remove (comma separated, i.e. 3,7,211) - outfile will exclude these labels",
+                        type=str)
+    parser.add_argument("--mask", dest="mask",
+                        help="Erase all labels where mask >0.5",
+                        type=str)
+    parser.add_argument("--diff", help="Output all voxels (binary) that differ between the two input files (difference labels are taken from the first input file)", action="store_true", default=False)
+    parser.add_argument("--binarize", help="threshold >0.5 and binarize output", action="store_true", default=False)
+    parser.add_argument("-v", "--verbose", help='verbose output', action='store_true', default=False)
+    parser.add_argument("inlabels1")
+    parser.add_argument("inlabels2", nargs="?")
+    parser.add_argument("outlabels")
 
-    parser.add_option("--convert", dest="convert",
-                      help="Convert input file to labels.",
-                      action="store_true", default=False)
-    parser.add_option("--merge", dest="merge",
-                      help="Second label file to whose labels are to be merged with the input_labels",
-                      type="string")
-    parser.add_option("--replace-all-different", dest="replace_all_different",
-                      help="Similar to the --merge option, but in this case, when the given "
-                      "file is zero, and the other input is not, it will be set to zero. "
-                      "The idea is that the fixes include voxels that were actually background.")
-    parser.add_option("--remap", dest="remap",
-                      help="Label numbers to replace with new label numbers. For example, to turn label 3 into label 11, it would be --remap 3:11. More than one can be specified at once, separated by commas, i.e. --remap 3:11,21:55. It is also possible to specify a range of values to be remapped as follows: to map 3,4,5,6,7, and 8 onto the value 11, specify --remap 3-8:11. This can also be combined: --remap 3-8:11,66:98.",
-                      type="string")
-    parser.add_option("--select", dest="select",
-                      help="Label numbers to select (comma separated, i.e. 3,7,211) - outfile will be just these labels",
-                      type="string")
-    parser.add_option("--remove", dest="remove",
-                      help="Label numbers to remove (comma separated, i.e. 3,7,211) - outfile will exclude these labels",
-                      type="string")
-    parser.add_option("--mask", dest="mask",
-                      help="Erase all labels where mask >0.5",
-                      type="string")
-    parser.add_option("--diff", help="Output all voxels (binary) that differ between the two input files (difference labels are taken from the first input file)", action="store_true", default=False)
-    parser.add_option("--binarize", help="threshold >0.5 and binarize output", action="store_true", default=False)
-    parser.add_option("-v", "--verbose", help='verbose output', action='store_true', default=False)
+    options = parser.parse_args()
 
-    (options, args) = parser.parse_args()
+    if not options.diff and options.inlabels2 is not None: #len(args) != 2:
+        parser.error("inlabels2 only required with --diff")
 
-    if not options.diff and len(args) != 2:
-        parser.error("Incorrect number of arguments")
-    
+    if options.diff and options.inlabels2 is None:
+        parser.error("Got --diff; please specify two input label files and an output label file to hold the difference between the two input files")
 
-    if options.diff and len(args) != 3:
-        parser.error("Incorrect number of arguments. Please specify two input label files and an output label file to hold the difference between the two input files")
-    
     if not options.diff:
-        inlabels = volumeFromFile(args[0], dtype='ushort')
-        outlabels = volumeLikeFile(args[0], args[1], dtype='ushort', 
+        inlabels = volumeFromFile(options.inlabels1, dtype='ushort')
+        outlabels = volumeLikeFile(options.inlabels1, options.outlabels, dtype='ushort', 
                                    volumeType="ushort", labels=True)
     else:
-        inlabels_1 = volumeFromFile(args[0], dtype='ushort')
-        inlabels_2 = volumeFromFile(args[1], dtype='ushort')
-        outlabels  = volumeLikeFile(args[0], args[2], dtype='ushort', 
+        inlabels_1 = volumeFromFile(options.inlabels1, dtype='ushort')
+        inlabels_2 = volumeFromFile(options.inlabels2, dtype='ushort')
+        outlabels  = volumeLikeFile(options.inlabels1, options.outlabels, dtype='ushort', 
                                     volumeType="ushort", labels=True)
 
     if options.verbose:
         print("Labels found in input: %s" % unique(inlabels.data[::]))
 
-    if options.convert == True:
+    if options.convert:
         outlabels.data[::] = rint(inlabels.data[::])
 
     if options.remap:
