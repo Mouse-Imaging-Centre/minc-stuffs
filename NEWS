@@ -1,3 +1,7 @@
+New in Version 0.1.22
+=====================
+* Added object_volume_dot_product program from unrelease mouse-thickness package
+
 New in Version 0.1.21
 =====================
 * TFCE rewritten to use numpy instead of weave, which doesn't support Python 3
