@@ -11,6 +11,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import math
 
 
 def get_tempfile(suffix):
@@ -115,6 +116,23 @@ def compute_xcorr(sourcefile, targetvol, maskvol):
     f3 = 0
     
     if maskvol is not None:
+        # we've had issues with mask files that after 
+        # running autocrop on them, only contain "nan"
+        # values. This seems to happen when the original
+        # mask has a valid image range indicated as:
+        # image: unsigned short 1 to 1
+        # when that happens, all following calculations 
+        # fail, so we should quit:
+        if math.isnan(maskvol.data.sum()):
+            # clean up...
+            shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
+            raise ValueError("\n\n* * * * * * * * * *\n"
+                  "Error: the mask volume is corrupted. No values are found inside the mask.\n"
+                  "probably you are using a mask with only the value 1 in it, but which at the same\n"
+                  "time has a valid range of 1 to 1 . You can check this using mincinfo.\n"
+                  "You need to generate a new mask. To produce a full field of view mask for file.mnc\n"
+                  "run:\n\nminccalc -expression if(true){out = 1;} file.mnc file_mask.mnc\n"
+                  "* * * * * * * * * *\n")
         f1 = sum(sourcevol.data[maskvol.data > 0.5] * \
              targetvol.data[maskvol.data > 0.5])
         f2 = sum(sourcevol.data[maskvol.data > 0.5] ** 2)
@@ -144,14 +162,18 @@ def resample_volume(source, target, transform):
                           % (transform, target, source, tmp_resampled)).split())
     return tmp_resampled
 
-def minctracc(source, target, mask, stepsize, wtranslations, simplex):
+def minctracc(source, target, mask, stepsize, wtranslations, simplex, use_lsq12_for_alignment):
     wtrans_decomp = array(wtranslations.split(',')).astype("float")
     tmp_transform = get_tempfile('.xfm')
-    cmd = ("minctracc -identity -lsq6 -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s " 
+    cmd = ("minctracc -identity -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s " 
            % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform,
            wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
     if mask:
         cmd += ("-source_mask %s -model_mask %s " % (mask, mask))
+    if use_lsq12_for_alignment:
+        cmd += "-lsq12"
+    else:
+        cmd += "-lsq6"
     print(cmd)
     subprocess.check_call(cmd.split())
     
@@ -173,11 +195,14 @@ def get_cross_correlation_from_coordinate_pair(source_img, target_img, target_vo
     transform_from_coordinates = create_transform(coordinate_pair[1] - coordinate_pair[0], 0, 0, 0, coordinate_pair[0])
     resampled_source = resample_volume(source_img, target_img, transform_from_coordinates)
     xcorr = compute_xcorr(resampled_source, target_vol, mask)
+    # clean up. We do not need either the MINC file nor the transform anymore
     os.remove(resampled_source)
+    os.remove(transform_from_coordinates)
     return float(xcorr)
     
 def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, 
-                   wtranslations="0.2,0.2,0.2", use_multiple_seeds=True, max_number_seeds=5):
+                   wtranslations="0.2,0.2,0.2", use_multiple_seeds=True, max_number_seeds=5,
+                   use_lsq12_for_alignment=False):
     # load the target and mask volumes
     targetvol = volumeFromFile(target)
     maskvol = volumeFromFile(mask) if mask is not None else None
@@ -241,7 +266,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
             print(list_of_coordinate_pairs)
     
     results = []
-    best_xcorr = 0
+    #best_xcorr = 0
     for coordinates_src_target in list_of_coordinate_pairs:
         coor_src = coordinates_src_target[0]
         coor_trgt = coordinates_src_target[1]
@@ -252,27 +277,44 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     init_transform = create_transform(coor_trgt - coor_src, x, y, z, coor_src)
                     init_resampled = resample_volume(source, target, init_transform)
                     transform = minctracc(init_resampled, target, mask, stepsize=stepsize,
-                                          wtranslations=wtranslations, simplex=simplex)
+                                          wtranslations=wtranslations, simplex=simplex,
+                                          use_lsq12_for_alignment=use_lsq12_for_alignment)
                     resampled = resample_volume(init_resampled, target, transform)
                     conc_transform = concat_transforms(init_transform, transform)
                     xcorr = compute_xcorr(resampled, targetvol, maskvol)
                     if isnan(xcorr):
                         xcorr = 0
-                    results.append({'xcorr': xcorr, 'transform': conc_transform, \
-                                    'resampled': resampled, 'x': x, \
-                                    'y': y, 'z': z})
-                    if xcorr > best_xcorr:
-                        best_xcorr = xcorr
+                    results.append({'xcorr': xcorr, 'transform': conc_transform,
+                                    'resampled': resampled, 'xrot': x,
+                                    'yrot': y, 'zrot': z, 'coor_src' : coor_src, 'coor_trgt' : coor_trgt })
+                    #if xcorr > best_xcorr:
+                    #    best_xcorr = xcorr
                     # had some issues with the resampled file being gone...
                     # we'll just resample the final file only at the end
                     os.remove(resampled)
                     os.remove(init_resampled)
+                    os.remove(conc_transform)
+                    os.remove(init_transform)
+                    os.remove(transform)
                     print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
     
     sort_results(results)
     # resample the best result:
-    final_resampled = resample_volume(source, target, results[-1]["transform"])
+    # TODO this is the same code as the inner loop above -- make a procedure?
+    best = results[-1]
+    best_init_transform = create_transform(best['coor_trgt'] - best['coor_src'],
+                                           best['xrot'], best['yrot'], best['zrot'],
+                                           best['coor_src'])
+    best_init_resampled = resample_volume(source, target, best_init_transform)
+    best_transform = minctracc(best_init_resampled, target, mask, stepsize=stepsize,
+                                          wtranslations=wtranslations, simplex=simplex,
+                                          use_lsq12_for_alignment=use_lsq12_for_alignment)
+    best_resampled = resample_volume(best_init_resampled, target, best_transform)
+    best_conc_transform = concat_transforms(best_init_transform, best_transform)
+    final_resampled = resample_volume(source, target, best_conc_transform)
+    #final_resampled = resample_volume(source, target, results[-1]["transform"])
     results[-1]["resampled"] = final_resampled
+    results[-1]["transform"] = best_conc_transform
     targetvol.closeVolume()
     if mask is not None:
         maskvol.closeVolume()
@@ -293,12 +335,14 @@ def downsample(infile, stepsize):
 # clean up tmp on soft kill signal
 def termtrapper(signum, frame):
     print("got kill signal")
-    os.removedirs("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
+    shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
+    print("\n\nWent down gracefully!\n")
     exit(1)
 
 if __name__ == "__main__":
     # handle soft kill signal to clean up tmp
     signal.signal(signal.SIGTERM, termtrapper)
+    signal.signal(signal.SIGINT, termtrapper)
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--mask", dest="mask",
@@ -338,6 +382,13 @@ if __name__ == "__main__":
                         "pairs are ordered based on the cross correlation gotten "
                         "from the alignment based on only the translation from the "
                         "seed point. [default = %(default)s]")
+    parser.set_defaults(use_lsq12_for_alignment=False)
+    
+    parser.add_argument("--use-lsq12-for-alignment", dest="use_lsq12_for_alignment", action="store_true",
+                        help="Instead of aligning the files using rotations and translations only "
+                             "use 3 scaling parameters as well. [default = %(default)s]")
+    parser.add_argument("--no-use-lsq12-for-alignment", dest="use_lsq12_for_alignment", action="store_false",
+                        help="Opposite of --use-lsq12-for-alignment")
     parser.add_argument("source", help="", type=str, metavar="source.mnc")
     parser.add_argument("target", help="", type=str, metavar="target.mnc")
     parser.add_argument("output_xfm", help="", type=str, metavar="output.xfm")
@@ -373,7 +424,8 @@ if __name__ == "__main__":
                              wtranslations=options.wtranslations, 
                              simplex=options.simplex,
                              use_multiple_seeds=options.use_multiple_seeds,
-                             max_number_seeds=options.max_number_seeds)
+                             max_number_seeds=options.max_number_seeds,
+                             use_lsq12_for_alignment=options.use_lsq12_for_alignment)
     
     print(results)
     subprocess.check_call(("cp %s %s" % (results[-1]["transform"], output_xfm)).split())
