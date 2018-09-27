@@ -18,7 +18,7 @@ def explode(filename: str) -> Tuple[str, str, str]:
 
 if __name__ == "__main__":
 
-    usage = "%(prog)s [options] input_transform.xfm input_like.mnc output_determinant.mnc"
+    usage = "%(prog)s [options] input_transform.xfm input_like.mnc output_determinant.mnc --temp-folder TEMP_FOLDER"
     description = 'Compute the determinant of a transform.'
 
     parser = argparse.ArgumentParser(usage=usage, description=description)
