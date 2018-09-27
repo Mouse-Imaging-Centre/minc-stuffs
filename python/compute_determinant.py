@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse, subprocess, os
-
+from typing import Tuple
 def run_subprocess(cmds):
     cmdstr = " ".join(cmds)
     print("\n")
@@ -14,6 +14,11 @@ def run_subprocess(cmds):
     # out=out.decode()
     # if p.wait() != 0:
     #     print(err.decode())
+
+def explode(filename: str) -> Tuple[str, str, str]:
+    base, ext = os.path.splitext(filename)
+    directory, name = os.path.split(base)
+    return (directory, name, ext)
 
 if __name__ == "__main__":
 
@@ -41,7 +46,12 @@ if __name__ == "__main__":
                         action='store_true',
                         default=False,
                         dest='non_linear_only',
-                        help='compute the determinant of the non-linear portion only'
+                        help='compute the determinant of the non-linear portion only. please provide a mask using --mask'
+                        )
+    parser.add_argument('--mask',
+                        nargs="?",
+                        dest='mask',
+                        help='mask for computing the non-linear portion of the input transform'
                         )
     parser.add_argument('--smooth',
                         dest='smooth',
@@ -66,12 +76,32 @@ if __name__ == "__main__":
     if not os.path.isdir(tempdir):
         os.mkdir(tempdir)
 
-    no_ext, ext = os.path.splitext(args.output_determinant)
-    output_dir, output_name = os.path.split(no_ext)
+    input_dir, input_name, input_ext = explode(args.input_transform)
+    output_dir, output_name, output_ext = explode(args.output_determinant)
 
 ###########START
-    #if non_linear_only:
+    if args.non_linear_only:
+        linear_part = os.path.join(tempdir, input_name + "_linear_part.xfm")
+        p = run_subprocess(["lin_from_nlin", "-lsq12",
+                            "-clobber" if args.clobber else "",
+                            "-mask", args.mask,
+                            args.input_like,
+                            args.input_transform,
+                            linear_part])
 
+        linear_part_inv = os.path.join(tempdir, input_name + "_linear_part_inv.xfm")
+        p = run_subprocess(["xfminvert",
+                            "-clobber" if args.clobber else "",
+                            linear_part,
+                            linear_part_inv])
+        transform = os.path.join(tempdir, input_name + "_nlin_part.xfm")
+        p = run_subprocess(["xfmconcat",
+                            "-clobber" if args.clobber else "",
+                            args.input_transform,
+                            linear_part_inv,
+                            transform])
+    else:
+        transform = args.input_like
 
     displacement = os.path.join(tempdir, output_name + "_displacement.mnc")
     p = run_subprocess(["minc_displacement",
