@@ -2,18 +2,14 @@
 
 import argparse, subprocess, os
 from typing import Tuple
+
 def run_subprocess(cmds):
     cmdstr = " ".join(cmds)
     print("\n")
     print(cmdstr)
     p = subprocess.Popen(cmdstr, shell=True)
     p.wait()
-    p.communicate()
     return p
-    # (out,err)=p.communicate()
-    # out=out.decode()
-    # if p.wait() != 0:
-    #     print(err.decode())
 
 def explode(filename: str) -> Tuple[str, str, str]:
     base, ext = os.path.splitext(filename)
