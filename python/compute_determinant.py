@@ -8,6 +8,7 @@ def run_subprocess(cmds):
     print(cmdstr)
     p = subprocess.Popen(cmdstr, shell=True)
     p.wait()
+    p.communicate()
     return p
     # (out,err)=p.communicate()
     # out=out.decode()
