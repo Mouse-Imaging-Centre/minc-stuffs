@@ -6,8 +6,7 @@ def run_subprocess(cmds):
     cmdstr = " ".join(cmds)
     print("\n")
     print(cmdstr)
-    p = subprocess.Popen(cmdstr,
-                         shell=True)
+    p = subprocess.Popen(cmdstr, shell=True)
     p.wait()
     return p
     # (out,err)=p.communicate()
@@ -41,6 +40,11 @@ if __name__ == "__main__":
                         action='store_true',
                         dest='clobber',
                         help='clobber all temporary and output files'
+                        )
+    parser.add_argument('--inverse',
+                        action='store_true',
+                        dest='inverse',
+                        help='compute the determinant of the inverse instead'
                         )
     parser.add_argument('--non-linear-only',
                         action='store_true',
@@ -79,8 +83,33 @@ if __name__ == "__main__":
     input_dir, input_name, input_ext = explode(args.input_transform)
     output_dir, output_name, output_ext = explode(args.output_determinant)
 
-###########START
-    if args.non_linear_only:
+# These 4 cases are the product of 2 optional preprocessing steps (i know its ugly)
+    if args.inverse and args.non_linear_only:
+        inverse = os.path.join(tempdir, input_name + "_inverse.xfm")
+        p = run_subprocess(["xfminvert",
+                            "-clobber" if args.clobber else "",
+                            args.input_like,
+                            inverse])
+        linear_part = os.path.join(tempdir, input_name + "_inverse_linear_part.xfm")
+        p = run_subprocess(["lin_from_nlin", "-lsq12",
+                            "-clobber" if args.clobber else "",
+                            "-mask", args.mask,
+                            args.input_like,
+                            inverse,
+                            linear_part])
+
+        linear_part_inv = os.path.join(tempdir, input_name + "_inverse_linear_part_inv.xfm")
+        p = run_subprocess(["xfminvert",
+                            "-clobber" if args.clobber else "",
+                            linear_part,
+                            linear_part_inv])
+        transform = os.path.join(tempdir, input_name + "_nlin_part.xfm")
+        p = run_subprocess(["xfmconcat",
+                            "-clobber" if args.clobber else "",
+                            args.input_transform,
+                            linear_part_inv,
+                            transform])
+    elif args.non_linear_only:
         linear_part = os.path.join(tempdir, input_name + "_linear_part.xfm")
         p = run_subprocess(["lin_from_nlin", "-lsq12",
                             "-clobber" if args.clobber else "",
@@ -100,14 +129,22 @@ if __name__ == "__main__":
                             args.input_transform,
                             linear_part_inv,
                             transform])
+    elif args.inverse:
+        transform = os.path.join(tempdir, input_name + "_inverse.xfm")
+        p = run_subprocess(["xfminvert",
+                            "-clobber" if args.clobber else "",
+                            args.input_like,
+                            transform])
     else:
         transform = args.input_like
 
+
+# Start the linear pipeline
     displacement = os.path.join(tempdir, output_name + "_displacement.mnc")
     p = run_subprocess(["minc_displacement",
                         "-clobber" if args.clobber else "",
                         args.input_like,
-                        args.input_transform,
+                        transform,
                         displacement])
 
     if args.smooth:
