@@ -1,3 +1,7 @@
+New in Version 0.1.23
+=====================
+* Added compute_determinants.py
+
 New in Version 0.1.22
 =====================
 * Added object_volume_dot_product program from unrelease mouse-thickness package

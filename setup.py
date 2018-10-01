@@ -4,7 +4,7 @@ from setuptools import setup
 
 
 setup(name="python-stuffs",
-      version='0.1.22',
+      version='0.1.23',
       install_requires=['numpy', 'scipy', 'pyminc'],
       scripts=["python/TFCE",
                "python/smooth_vector",
