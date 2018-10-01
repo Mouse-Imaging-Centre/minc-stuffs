@@ -16,6 +16,6 @@ setup(name="python-stuffs",
                "python/voxel_vote",
                "python/replace_label_with_nearest_valid_label",
                "python/rotational_minctracc.py",
-               "python/compute_determinant.py"
+               "python/compute_determinant.py",
                "minc-scripts-jscholz/vtk_meshconvert.py"],
       )
