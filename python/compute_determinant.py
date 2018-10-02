@@ -8,7 +8,8 @@ def run_subprocess(cmds):
     print("\n")
     print(cmdstr)
     p = subprocess.Popen(cmdstr, shell=True)
-    p.wait()
+    if p.wait() != 0:
+        raise Exception("Something went wrong!")
     return p
 
 def explode(filename: str) -> Tuple[str, str, str]:
@@ -18,21 +19,10 @@ def explode(filename: str) -> Tuple[str, str, str]:
 
 if __name__ == "__main__":
 
-    usage = "%(prog)s [options] input_transform.xfm input_like.mnc output_determinant.mnc --temp-folder TEMP_FOLDER"
     description = 'Compute the determinant of a transform.'
 
-    parser = argparse.ArgumentParser(usage=usage, description=description)
+    parser = argparse.ArgumentParser(description=description)
 
-    parser.add_argument('input_like',
-                        help='a like file',
-                        )
-    parser.add_argument('input_transform',
-                        type=str,
-                        help='a transform for which the determinant should be calculated',
-                        )
-    parser.add_argument('output_determinant',
-                        help='output',
-                        )
     parser.add_argument('--clobber',
                         action='store_true',
                         dest='clobber',
@@ -64,11 +54,22 @@ if __name__ == "__main__":
                         dest='log',
                         help='compute the logarithm of the transformation'
                         )
+    parser.add_argument("--temp-folder",
+                        dest="temp_folder",
+                        default="/tmp")
 
     requiredNamed = parser.add_argument_group('required named arguments')
-    requiredNamed.add_argument('--temp-folder',
-                               dest ="temp_folder",
-                               help='temp folder',
+    requiredNamed.add_argument("--like",
+                               dest="input_like",
+                               help='a like file',
+                               required=True)
+    requiredNamed.add_argument("--transform",
+                               dest="input_transform",
+                               help='a transform for which the determinant should be calculated',
+                               required=True)
+    requiredNamed.add_argument("--determinant",
+                               dest='output_determinant',
+                               help='output',
                                required=True)
 
     args = parser.parse_args()
@@ -85,26 +86,20 @@ if __name__ == "__main__":
         inverse = os.path.join(tempdir, input_name + "_inverse.xfm")
         p = run_subprocess(["xfminvert",
                             "-clobber" if args.clobber else "",
-                            args.input_like,
+                            args.input_transform,
                             inverse])
-        linear_part = os.path.join(tempdir, input_name + "_inverse_linear_part.xfm")
+        linear_part = os.path.join(tempdir, input_name + "_linear_part.xfm")
         p = run_subprocess(["lin_from_nlin", "-lsq12",
                             "-clobber" if args.clobber else "",
                             "-mask", args.mask,
                             args.input_like,
-                            inverse,
+                            args.input_transform,
                             linear_part])
-
-        linear_part_inv = os.path.join(tempdir, input_name + "_inverse_linear_part_inv.xfm")
-        p = run_subprocess(["xfminvert",
-                            "-clobber" if args.clobber else "",
-                            linear_part,
-                            linear_part_inv])
         transform = os.path.join(tempdir, input_name + "_nlin_part.xfm")
         p = run_subprocess(["xfmconcat",
                             "-clobber" if args.clobber else "",
-                            args.input_transform,
-                            linear_part_inv,
+                            inverse,
+                            linear_part,
                             transform])
     elif args.non_linear_only:
         linear_part = os.path.join(tempdir, input_name + "_linear_part.xfm")
@@ -123,17 +118,17 @@ if __name__ == "__main__":
         transform = os.path.join(tempdir, input_name + "_nlin_part.xfm")
         p = run_subprocess(["xfmconcat",
                             "-clobber" if args.clobber else "",
-                            args.input_transform,
                             linear_part_inv,
+                            args.input_transform,
                             transform])
     elif args.inverse:
         transform = os.path.join(tempdir, input_name + "_inverse.xfm")
         p = run_subprocess(["xfminvert",
                             "-clobber" if args.clobber else "",
-                            args.input_like,
+                            args.input_transform,
                             transform])
     else:
-        transform = args.input_like
+        transform = args.input_transform
 
 
 # Start the linear pipeline
