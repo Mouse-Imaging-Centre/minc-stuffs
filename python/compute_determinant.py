@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 
-import argparse, subprocess, os
+import argparse, subprocess, os, tempfile, shutil
 from typing import Tuple
 
-def run_subprocess(cmds):
-    cmdstr = " ".join(cmds)
-    print("\n")
-    print(cmdstr)
-    p = subprocess.Popen(cmdstr, shell=True)
-    if p.wait() != 0:
-        raise Exception("Something went wrong!")
-    return p
 
 def explode(filename: str) -> Tuple[str, str, str]:
     base, ext = os.path.splitext(filename)
@@ -54,9 +46,23 @@ if __name__ == "__main__":
                         dest='log',
                         help='compute the logarithm of the transformation'
                         )
-    parser.add_argument("--temp-folder",
-                        dest="temp_folder",
-                        default="/tmp")
+    parser.add_argument("--temp-dir",
+                        dest="temp_dir",
+                        default="/tmp",
+                        help="Path for which a temporary subdirectory will be created, using Python's tempfile module"
+                        )
+    parser.add_argument('--keep-temp',
+                        action='store_true',
+                        default=False,
+                        dest='keep_temp',
+                        help='Keep temporary files for debugging.'
+                        )
+    parser.add_argument('--verbose',
+                        action='store_true',
+                        default=False,
+                        dest='verbose',
+                        help='Be verbose.'
+                        )
 
     requiredNamed = parser.add_argument_group('required named arguments')
     requiredNamed.add_argument("--like",
@@ -74,9 +80,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    tempdir = args.temp_folder
-    if not os.path.isdir(tempdir):
-        os.mkdir(tempdir)
+    def run_subprocess(cmds):
+        cmdstr = " ".join(cmds)
+        if args.verbose:
+            print("\n")
+            print(cmdstr)
+            p = subprocess.Popen(cmdstr, shell=True)
+        else:
+            p = subprocess.Popen(cmdstr, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p.wait()
+        return p
+
+    tempdir = tempfile.mkdtemp(dir=args.temp_dir)
 
     input_dir, input_name, input_ext = explode(args.input_transform)
     output_dir, output_name, output_ext = explode(args.output_determinant)
@@ -171,3 +186,5 @@ if __name__ == "__main__":
                             nolog_determinant,
                             args.output_determinant
                             ])
+    if not args.keep_temp:
+        shutil.rmtree(tempdir)
