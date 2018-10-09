@@ -91,6 +91,8 @@ if __name__ == "__main__":
         p.wait()
         return p
 
+    if not os.path.isdir(args.temp_folder):
+        os.mkdir(args.temp_folder)
     tempdir = tempfile.mkdtemp(dir=args.temp_dir)
 
     input_dir, input_name, input_ext = explode(args.input_transform)
