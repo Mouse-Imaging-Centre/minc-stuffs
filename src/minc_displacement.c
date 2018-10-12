@@ -12,7 +12,7 @@
 /* argument parsing defaults */
 static int verbose = FALSE;
 static int clobber = FALSE;
-static int datatype = NC_DOUBLE;
+static int datatype = NC_SHORT;
 
 /* argument table */
 static ArgvInfo argTable[] = {
