@@ -265,8 +265,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
             print("\n\nNew list of coordinates:")
             print(list_of_coordinate_pairs)
     
-    results = []
-    #best_xcorr = 0
+    best = { 'xcorr' : 0 }
     for coordinates_src_target in list_of_coordinate_pairs:
         coor_src = coordinates_src_target[0]
         coor_trgt = coordinates_src_target[1]
@@ -284,11 +283,11 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     xcorr = compute_xcorr(resampled, targetvol, maskvol)
                     if isnan(xcorr):
                         xcorr = 0
-                    results.append({'xcorr': xcorr, 'transform': conc_transform,
-                                    'resampled': resampled, 'xrot': x,
-                                    'yrot': y, 'zrot': z, 'coor_src' : coor_src, 'coor_trgt' : coor_trgt })
-                    #if xcorr > best_xcorr:
-                    #    best_xcorr = xcorr
+                    if xcorr > best['xcorr']:
+                        best = {'xcorr': xcorr, 'transform': conc_transform,
+                                'resampled': resampled,
+                                'xrot': x, 'yrot': y, 'zrot': z,
+                                'coor_src' : coor_src, 'coor_trgt' : coor_trgt }
                     # had some issues with the resampled file being gone...
                     # we'll just resample the final file only at the end
                     os.remove(resampled)
@@ -298,10 +297,8 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     os.remove(transform)
                     print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
     
-    sort_results(results)
     # resample the best result:
     # TODO this is the same code as the inner loop above -- make a procedure?
-    best = results[-1]
     best_init_transform = create_transform(best['coor_trgt'] - best['coor_src'],
                                            best['xrot'], best['yrot'], best['zrot'],
                                            best['coor_src'])
@@ -313,12 +310,12 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
     best_conc_transform = concat_transforms(best_init_transform, best_transform)
     final_resampled = resample_volume(source, target, best_conc_transform)
     #final_resampled = resample_volume(source, target, results[-1]["transform"])
-    results[-1]["resampled"] = final_resampled
-    results[-1]["transform"] = best_conc_transform
+    best["resampled"] = final_resampled
+    best["transform"] = best_conc_transform
     targetvol.closeVolume()
     if mask is not None:
         maskvol.closeVolume()
-    return results
+    return best
 
 def dict_extract(adict, akey):
     return adict[akey]
@@ -334,12 +331,12 @@ def downsample(infile, stepsize):
 
 # clean up tmp on soft kill signal
 def termtrapper(signum, frame):
-    print("got kill signal")
+    print("got kill signal", file=sys.stderr)
     shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
-    print("\n\nWent down gracefully!\n")
-    exit(1)
+    exit("Went down gracefully!")
 
-if __name__ == "__main__":
+
+def main(args):
     # handle soft kill signal to clean up tmp
     signal.signal(signal.SIGTERM, termtrapper)
     signal.signal(signal.SIGINT, termtrapper)
@@ -415,20 +412,23 @@ if __name__ == "__main__":
         if options.mask:
             options.mask = downsample(options.mask, options.resamplestepsize)
     
-    results = loop_rotations(stepsize=options.registrationstepsize, 
-                             source=source,
-                             target=target,
-                             mask=options.mask, 
-                             start=options.range,
-                             interval=options.interval, 
-                             wtranslations=options.wtranslations, 
-                             simplex=options.simplex,
-                             use_multiple_seeds=options.use_multiple_seeds,
-                             max_number_seeds=options.max_number_seeds,
-                             use_lsq12_for_alignment=options.use_lsq12_for_alignment)
+    best = loop_rotations(stepsize=options.registrationstepsize,
+                          source=source,
+                          target=target,
+                          mask=options.mask,
+                          start=options.range,
+                          interval=options.interval,
+                          wtranslations=options.wtranslations,
+                          simplex=options.simplex,
+                          use_multiple_seeds=options.use_multiple_seeds,
+                          max_number_seeds=options.max_number_seeds,
+                          use_lsq12_for_alignment=options.use_lsq12_for_alignment)
     
-    print(results)
-    subprocess.check_call(("cp %s %s" % (results[-1]["transform"], output_xfm)).split())
-    subprocess.check_call(("cp %s %s" % (results[-1]["resampled"], output_mnc)).split())
+    print(best)
+    subprocess.check_call(("cp %s %s" % (best["transform"], output_xfm)).split())
+    subprocess.check_call(("cp %s %s" % (best["resampled"], output_mnc)).split())
     shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
 
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
