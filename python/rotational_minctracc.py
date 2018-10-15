@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import math
+import warnings
 
 
 def get_tempfile(suffix):
@@ -162,7 +163,7 @@ def resample_volume(source, target, transform):
                           % (transform, target, source, tmp_resampled)).split())
     return tmp_resampled
 
-def minctracc(source, target, mask, stepsize, wtranslations, simplex, use_lsq12_for_alignment):
+def minctracc(source, target, mask, stepsize, wtranslations, simplex, xfm_type):
     wtrans_decomp = array(wtranslations.split(',')).astype("float")
     tmp_transform = get_tempfile('.xfm')
     cmd = ("minctracc -identity -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s " 
@@ -170,10 +171,7 @@ def minctracc(source, target, mask, stepsize, wtranslations, simplex, use_lsq12_
            wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
     if mask:
         cmd += ("-source_mask %s -model_mask %s " % (mask, mask))
-    if use_lsq12_for_alignment:
-        cmd += "-lsq12"
-    else:
-        cmd += "-lsq6"
+    cmd += "-" + xfm_type
     print(cmd)
     subprocess.check_call(cmd.split())
     
@@ -202,7 +200,7 @@ def get_cross_correlation_from_coordinate_pair(source_img, target_img, target_vo
     
 def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, 
                    wtranslations="0.2,0.2,0.2", use_multiple_seeds=True, max_number_seeds=5,
-                   use_lsq12_for_alignment=False):
+                   xfm_type = "lsq6"):
     # load the target and mask volumes
     targetvol = volumeFromFile(target)
     maskvol = volumeFromFile(mask) if mask is not None else None
@@ -278,7 +276,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     init_resampled = resample_volume(source, target, init_transform)
                     transform = minctracc(init_resampled, target, mask, stepsize=stepsize,
                                           wtranslations=wtranslations, simplex=simplex,
-                                          use_lsq12_for_alignment=use_lsq12_for_alignment)
+                                          xfm_type = xfm_type)
                     resampled = resample_volume(init_resampled, target, transform)
                     conc_transform = concat_transforms(init_transform, transform)
                     xcorr = compute_xcorr(resampled, targetvol, maskvol)
@@ -308,7 +306,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
     best_init_resampled = resample_volume(source, target, best_init_transform)
     best_transform = minctracc(best_init_resampled, target, mask, stepsize=stepsize,
                                           wtranslations=wtranslations, simplex=simplex,
-                                          use_lsq12_for_alignment=use_lsq12_for_alignment)
+                                            xfm_type=xfm_type)
     best_resampled = resample_volume(best_init_resampled, target, best_transform)
     best_conc_transform = concat_transforms(best_init_transform, best_transform)
     final_resampled = resample_volume(source, target, best_conc_transform)
@@ -382,19 +380,54 @@ if __name__ == "__main__":
                         "pairs are ordered based on the cross correlation gotten "
                         "from the alignment based on only the translation from the "
                         "seed point. [default = %(default)s]")
-    parser.set_defaults(use_lsq12_for_alignment=False)
-    
-    parser.add_argument("--use-lsq12-for-alignment", dest="use_lsq12_for_alignment", action="store_true",
-                        help="Instead of aligning the files using rotations and translations only "
-                             "use 3 scaling parameters as well. [default = %(default)s]")
-    parser.add_argument("--no-use-lsq12-for-alignment", dest="use_lsq12_for_alignment", action="store_false",
-                        help="Opposite of --use-lsq12-for-alignment")
+
     parser.add_argument("source", help="", type=str, metavar="source.mnc")
     parser.add_argument("target", help="", type=str, metavar="target.mnc")
     parser.add_argument("output_xfm", help="", type=str, metavar="output.xfm")
     parser.add_argument("output_mnc", help="", type=str, metavar="output.mnc")
 
+    xfm_type = parser.add_mutually_exclusive_group()
+    parser.set_defaults(xfm_type="lsq6")
+    xfm_type.add_argument("--lsq6",
+                          dest="xfm_type",
+                          action='store_const',
+                          const="lsq6",
+                          help='6 parameter transformation (3 translation, 3 rotation, scale=1.0). [default = %(default)s]')
+    xfm_type.add_argument("--lsq7", "--procrustes",
+                          dest="xfm_type",
+                          action='store_const',
+                          const="lsq7",
+                          help='7 parameter transformation (lsq6 + 1 global scale)')
+    xfm_type.add_argument("--lsq9",
+                          dest="xfm_type",
+                          action='store_const',
+                          const="lsq9",
+                          help='9 parameter transformation (lsq6 + 3 scales).')
+    xfm_type.add_argument("--lsq10",
+                          dest="xfm_type",
+                          action='store_const',
+                          const="lsq10",
+                          help='10 parameter transformation (lsq9 + 1 shear).')
+    xfm_type.add_argument("--lsq12",
+                          dest="xfm_type",
+                          action='store_const',
+                          const="lsq12",
+                          help='12 parameter transformation (lsq9 + 3 shears).')
+    xfm_type.add_argument("--use-lsq12-for-alignment", dest="xfm_type", action="store_const",
+                            const="lsq12_d",
+                            help="DEPRECATED; lives only for backwards compatibility. Use --lsq12 instead.")
+    xfm_type.add_argument("--no-use-lsq12-for-alignment", dest="xfm_type", action="store_const",
+                            const="lsq6_d",
+                            help="DEPRECATED; lives only for backwards compatibility. Use --lsq6 instead.")
+
     options = parser.parse_args()
+
+    if options.xfm_type=="lsq12_d":
+        options.xfm_type ="lsq12"
+        warnings.warn("--use-lsq12-for-alignment is DEPRECATED")
+    if options.xfm_type == "lsq6_d":
+        options.xfm_type = "lsq6"
+        warnings.warn("--no-use-lsq12-for-alignment is DEPRECATED")
 
     if options.tmpdir:
         os.environ["TMPDIR"] = options.tmpdir
@@ -425,7 +458,7 @@ if __name__ == "__main__":
                              simplex=options.simplex,
                              use_multiple_seeds=options.use_multiple_seeds,
                              max_number_seeds=options.max_number_seeds,
-                             use_lsq12_for_alignment=options.use_lsq12_for_alignment)
+                             xfm_type = options.xfm_type)
     
     print(results)
     subprocess.check_call(("cp %s %s" % (results[-1]["transform"], output_xfm)).split())
