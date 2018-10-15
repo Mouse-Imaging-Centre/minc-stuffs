@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
 # Start the linear pipeline
     displacement = os.path.join(tempdir, output_name + "_displacement.mnc")
-    p = run_subprocess(["minc_displacement",
+    p = run_subprocess(["minc_displacement -double",
                         "-clobber" if args.clobber else "",
                         args.input_like,
                         transform,
