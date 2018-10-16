@@ -163,15 +163,20 @@ def resample_volume(source, target, transform):
                           % (transform, target, source, tmp_resampled)).split())
     return tmp_resampled
 
-def minctracc(source, target, mask, stepsize, wtranslations, simplex, xfm_type):
-    wtrans_decomp = array(wtranslations.split(',')).astype("float")
+def minctracc(source, target, mask, stepsize, tol, wtranslations, wrotations, wscaling, wshears, simplex, xfm_type):
     tmp_transform = get_tempfile('.xfm')
-    cmd = ("minctracc -identity -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s " 
-           % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform,
-           wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
+    cmd = "".join(["minctracc -identity -xcorr",
+                   "-%s" % xfm_type,
+                   "-simplex %s" % simplex,
+                   "-step %s %s %s" % (stepsize, stepsize, stepsize),
+                   "-w_translations %s %s %s " % tuple(wtranslations.split(',')),
+                   "-w_rotations %s %s %s" % tuple(wrotations.split(',')) if wrotations is not None else "",
+                   "-w_scaling %s %s %s" % tuple(wscaling.split(',')) if wscaling is not None else "",
+                   "-w_shears %s %s %s" % tuple(wshears.split(',')) if wshears is not None else "",
+                   "%s %s %s" % (source, target, tmp_transform)
+                  ])
     if mask:
         cmd += ("-source_mask %s -model_mask %s " % (mask, mask))
-    cmd += "-" + xfm_type
     print(cmd)
     subprocess.check_call(cmd.split())
     
@@ -197,9 +202,14 @@ def get_cross_correlation_from_coordinate_pair(source_img, target_img, target_vo
     os.remove(resampled_source)
     os.remove(transform_from_coordinates)
     return float(xcorr)
-    
-def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, 
-                   wtranslations="0.2,0.2,0.2", use_multiple_seeds=True, max_number_seeds=5,
+
+def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10,
+                   tol=None,
+                   wtranslations="0.2,0.2,0.2",
+                   wrotations=None,
+                   wscaling=None,
+                   wshears=None,
+                   use_multiple_seeds=True, max_number_seeds=5,
                    xfm_type = "lsq6"):
     # load the target and mask volumes
     targetvol = volumeFromFile(target)
@@ -275,7 +285,12 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     init_transform = create_transform(coor_trgt - coor_src, x, y, z, coor_src)
                     init_resampled = resample_volume(source, target, init_transform)
                     transform = minctracc(init_resampled, target, mask, stepsize=stepsize,
-                                          wtranslations=wtranslations, simplex=simplex,
+                                          tol=tol,
+                                          wtranslations=wtranslations,
+                                          wrotations=wrotations,
+                                          wscaling=wscaling,
+                                          wshears=wshears,
+                                          simplex=simplex,
                                           xfm_type = xfm_type)
                     resampled = resample_volume(init_resampled, target, transform)
                     conc_transform = concat_transforms(init_transform, transform)
@@ -305,8 +320,12 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                                            best['coor_src'])
     best_init_resampled = resample_volume(source, target, best_init_transform)
     best_transform = minctracc(best_init_resampled, target, mask, stepsize=stepsize,
-                                          wtranslations=wtranslations, simplex=simplex,
-                                            xfm_type=xfm_type)
+                               tol=tol,
+                               wtranslations=wtranslations,
+                               wrotations=wrotations,
+                               wscaling=wscaling,
+                               wshears=wshears,
+                               simplex = simplex, xfm_type=xfm_type)
     best_resampled = resample_volume(best_init_resampled, target, best_transform)
     best_conc_transform = concat_transforms(best_init_transform, best_transform)
     final_resampled = resample_volume(source, target, best_conc_transform)
@@ -360,12 +379,6 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--interval", dest="interval",
                       help="interval (in degrees) to search across range [default = %(default)s]",
                       type=int, default=10)
-    parser.add_argument("-w", "--wtranslations", dest="wtranslations",
-                      help="Comma separated list of optimization weights of translations in "
-                           "x, y, z for minctracc [default = %(default)s]",
-                      type=str, default="0.2,0.2,0.2")
-    parser.add_argument("--simplex", dest="simplex", type=float, default=1, 
-                        help="Radius of minctracc simplex volume [default = %(default)s]")
     parser.set_defaults(use_multiple_seeds=True)
     parser.add_argument("--use-multiple-seeds", dest="use_multiple_seeds", action="store_true",
                         help="Find multiple possible starting points in the source and target for "
@@ -380,6 +393,29 @@ if __name__ == "__main__":
                         "pairs are ordered based on the cross correlation gotten "
                         "from the alignment based on only the translation from the "
                         "seed point. [default = %(default)s]")
+
+    lin_options = parser.add_argument_group("Options for linear optimization")
+    lin_options.add_argument("--tol", dest="tol",
+                             help="Stopping critera tolerance for minctracc",
+                             type=float)
+    lin_options.add_argument("--w_translations", "-w", "--wtranslations", dest="wtranslations",
+                             help="Comma separated list of optimization weights of translations in "
+                             "x, y, z for minctracc [default = %(default)s]",
+                             type=str, default="0.2,0.2,0.2")
+    lin_options.add_argument("--w_rotations", dest="wrotations",
+                             help="Comma separated list of optimization weights of rotations around "
+                                  "x, y, z for minctracc",
+                             type=str)
+    lin_options.add_argument("--w_scaling", dest="wscaling",
+                             help="Comma separated list of optimization weights of scaling along "
+                                  "x,y,z for minctracc",
+                             type=str)
+    lin_options.add_argument("--w_shears", dest="wshears",
+                             help="Comma separated list of optimization weights of shears in "
+                                  "a, b, c for minctracc",
+                             type=str)
+    lin_options.add_argument("--simplex", dest="simplex", type=float, default=1,
+                             help="Radius of minctracc simplex volume [default = %(default)s]")
 
     parser.add_argument("source", help="", type=str, metavar="source.mnc")
     parser.add_argument("target", help="", type=str, metavar="target.mnc")
@@ -453,12 +489,16 @@ if __name__ == "__main__":
                              target=target,
                              mask=options.mask, 
                              start=options.range,
-                             interval=options.interval, 
-                             wtranslations=options.wtranslations, 
+                             interval=options.interval,
+                             tol=options.tol,
+                             wtranslations=options.wtranslations,
+                             wrotations=options.wrotations,
+                             wscaling=options.wscaling,
+                             wshears=options.wshears,
                              simplex=options.simplex,
                              use_multiple_seeds=options.use_multiple_seeds,
                              max_number_seeds=options.max_number_seeds,
-                             xfm_type = options.xfm_type)
+                             xfm_type=options.xfm_type)
     
     print(results)
     subprocess.check_call(("cp %s %s" % (results[-1]["transform"], output_xfm)).split())
