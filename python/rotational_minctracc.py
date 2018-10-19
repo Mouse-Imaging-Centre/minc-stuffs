@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from pyminc.volumes.factory import *
@@ -15,8 +15,6 @@ import math
 
 
 def get_tempfile(suffix):
-    #tmp_fd, tmpfile = tempfile.mkstemp(suffix='.xfm')
-    #os.close(tmp_fd)
     counter = 0
     pid = os.getpid()
     tmpdir = "%s/rot_%s" % (os.environ["TMPDIR"], pid)
@@ -25,7 +23,7 @@ def get_tempfile(suffix):
             subprocess.check_call(("mkdir -p %s" % tmpdir).split())
         except:
             sys.exit("ERROR: could not make temporary directory %s!" % tmpdir)
-            
+
     tmpfile = "/%s/rot_%s.%s" % (tmpdir, counter, suffix)
     while os.access(tmpfile, 0):
         counter = counter + 1
@@ -62,20 +60,20 @@ def get_coordinates_from_tag_file(tag_file):
                     found_coordinates = True
             else:
                 # each line with coordinates starts with a space
-                # so the very first element when splitting this 
+                # so the very first element when splitting this
                 # line is the empty string. We don't need that one
                 current_coor = array([line.split(' ')[1],
                                       line.split(' ')[2],
                                       line.split(' ')[3]]).astype("float32")
                 all_coordinates.append(current_coor)
     return all_coordinates
-    
-    
+
+
 def get_distance_transform_peaks(input_file, peak_distance):
     #
     # for solid input files (brains, embryos) we can
     # calculate the distance transform for the input file
-    # and use peaks from that distance transform to 
+    # and use peaks from that distance transform to
     # widen our search space a bit.
     #
     # the .decode() in the end removes the b from the front
@@ -95,7 +93,7 @@ def get_distance_transform_peaks(input_file, peak_distance):
     subprocess.check_call(("find_peaks -pos_only -min_distance %s %s %s" % (peak_distance, distance_transform, peak_tags)).split())
     all_coors = get_coordinates_from_tag_file(peak_tags)
     return all_coors
-    
+
 def get_blur_peaks(input_file, blur_kernel, peak_distance):
     blurred_input = get_tempfile('_blur.mnc')
     subprocess.check_call(("mincblur -no_apo -fwhm %s %s %s" % (blur_kernel, input_file, blurred_input.split('_blur.mnc')[0])).split())
@@ -104,68 +102,32 @@ def get_blur_peaks(input_file, blur_kernel, peak_distance):
     all_coors = get_coordinates_from_tag_file(peak_tags)
     return all_coors
 
-def compute_xcorr(sourcefile, targetvol, maskvol):
-    try:
-        sourcevol = volumeFromFile(sourcefile)
-    except mincException:
-        raise
-    #    return 0
-    
-    f1 = 0
-    f2 = 0
-    f3 = 0
-    
-    if maskvol is not None:
-        # we've had issues with mask files that after 
-        # running autocrop on them, only contain "nan"
-        # values. This seems to happen when the original
-        # mask has a valid image range indicated as:
-        # image: unsigned short 1 to 1
-        # when that happens, all following calculations 
-        # fail, so we should quit:
-        if math.isnan(maskvol.data.sum()):
-            # clean up...
-            shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
-            raise ValueError("\n\n* * * * * * * * * *\n"
-                  "Error: the mask volume is corrupted. No values are found inside the mask.\n"
-                  "probably you are using a mask with only the value 1 in it, but which at the same\n"
-                  "time has a valid range of 1 to 1 . You can check this using mincinfo.\n"
-                  "You need to generate a new mask. To produce a full field of view mask for file.mnc\n"
-                  "run:\n\nminccalc -expression if(true){out = 1;} file.mnc file_mask.mnc\n"
-                  "* * * * * * * * * *\n")
-        f1 = sum(sourcevol.data[maskvol.data > 0.5] * \
-             targetvol.data[maskvol.data > 0.5])
-        f2 = sum(sourcevol.data[maskvol.data > 0.5] ** 2)
-        f3 = sum(targetvol.data[maskvol.data > 0.5] ** 2)
-    else:
-        f1 = sum(sourcevol.data * targetvol.data)
-        f2 = sum(sourcevol.data ** 2)
-        f3 = sum(targetvol.data ** 2)
 
-    sourcevol.closeVolume()
+def compute_xcorr(sourcefile, targetfile, maskfile):
+    return float(subprocess.check_output(
+                  ['minccmp', '-xcorr', '-mask', maskfile, sourcefile, targetfile]).split()[1])
 
-    return f1 / (sqrt(f2) * sqrt(f3))
 
 def create_transform(cog_diff, xrot, yrot, zrot, cog_source):
     # create temporary file for transform
     tmp_transform = get_tempfile('.xfm')
     subprocess.check_call(("param2xfm -translation %s %s %s -rotation %s %s %s -center %s %s %s %s"
                            % (cog_diff[0], cog_diff[1], cog_diff[2],
-                              xrot, yrot, zrot, 
+                              xrot, yrot, zrot,
                               cog_source[0], cog_source[1], cog_source[2],
                               tmp_transform)).split())
     return tmp_transform
 
 def resample_volume(source, target, transform):
     tmp_resampled = get_tempfile('.mnc')
-    subprocess.check_call(("mincresample -transform %s -like %s %s %s" 
+    subprocess.check_call(("mincresample -transform %s -like %s %s %s"
                           % (transform, target, source, tmp_resampled)).split())
     return tmp_resampled
 
 def minctracc(source, target, mask, stepsize, wtranslations, simplex, use_lsq12_for_alignment):
     wtrans_decomp = array(wtranslations.split(',')).astype("float")
     tmp_transform = get_tempfile('.xfm')
-    cmd = ("minctracc -identity -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s " 
+    cmd = ("minctracc -identity -xcorr -simplex %s -step %s %s %s %s %s %s -w_translations %s %s %s "
            % (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform,
            wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
     if mask:
@@ -176,7 +138,7 @@ def minctracc(source, target, mask, stepsize, wtranslations, simplex, use_lsq12_
         cmd += "-lsq6"
     print(cmd)
     subprocess.check_call(cmd.split())
-    
+
     return tmp_transform
 
 def concat_transforms(t1, t2):
@@ -184,8 +146,8 @@ def concat_transforms(t1, t2):
     subprocess.check_call(("xfmconcat %s %s %s" % (t1, t2, tmp_transform)).split())
     return tmp_transform
 
-def get_cross_correlation_from_coordinate_pair(source_img, target_img, target_vol, mask, coordinate_pair):
-    # Generate a transformation based on the coordinate_pair provided. Apply this 
+def get_cross_correlation_from_coordinate_pair(source_img, target_img, mask_img, coordinate_pair):
+    # Generate a transformation based on the coordinate_pair provided. Apply this
     # transformation to the source_img and calculate the cross correlation between
     # the source_img and target_img after this initial alignment
     #
@@ -194,25 +156,46 @@ def get_cross_correlation_from_coordinate_pair(source_img, target_img, target_vo
     # target_coordinates : coordinate_pair[1]
     transform_from_coordinates = create_transform(coordinate_pair[1] - coordinate_pair[0], 0, 0, 0, coordinate_pair[0])
     resampled_source = resample_volume(source_img, target_img, transform_from_coordinates)
-    xcorr = compute_xcorr(resampled_source, target_vol, mask)
+    xcorr = compute_xcorr(sourcefile=resampled_source,
+                          #targetvol=target_vol, maskvol=mask,
+                          targetfile=target_img,
+                          maskfile=mask_img)
     # clean up. We do not need either the MINC file nor the transform anymore
     os.remove(resampled_source)
     os.remove(transform_from_coordinates)
     return float(xcorr)
-    
-def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10, 
+
+def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=10,
                    wtranslations="0.2,0.2,0.2", use_multiple_seeds=True, max_number_seeds=5,
                    use_lsq12_for_alignment=False):
-    # load the target and mask volumes
-    targetvol = volumeFromFile(target)
+    # load the mask volumes
     maskvol = volumeFromFile(mask) if mask is not None else None
-    
+
+    # we've had issues with mask files that after
+    # running autocrop on them, only contain "nan"
+    # values. This seems to happen when the original
+    # mask has a valid image range indicated as:
+    # image: unsigned short 1 to 1
+    # when that happens, all following calculations
+    # fail, so we should quit:
+    if math.isnan(maskvol.data.sum()):
+        # clean up...
+        shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
+        raise ValueError(
+            "\n\n* * * * * * * * * *\n"
+            "Error: the mask volume is corrupted. No values are found inside the mask.\n"
+            "probably you are using a mask with only the value 1 in it, but which at the same\n"
+            "time has a valid range of 1 to 1 . You can check this using mincinfo.\n"
+            "You need to generate a new mask. To produce a full field of view mask for file.mnc\n"
+            "run:\n\nminccalc -expression if(true){out = 1;} file.mnc file_mask.mnc\n"
+            "* * * * * * * * * *\n")
+
     # 1) The default way of aligning files is by using the centre
     #    of gravity of the input files
     cog_source = get_centre_of_gravity(source)
     cog_target = get_centre_of_gravity(target)
     list_of_coordinate_pairs = [[cog_source, cog_target]]
-    
+
     # 2) If we are using multiple seeds, calculate possible
     #    seeds for both source and target images. The distance
     #    between peaks is based on the stepsize used for the
@@ -224,7 +207,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
             print(coor_src)
         # also add peaks from the blurred version of the input file
         blurred_peaks_source = get_blur_peaks(input_file=source, blur_kernel=stepsize, peak_distance=stepsize)
-        print("\n\nPeaks found in the source image (blurrred image):")
+        print("\n\nPeaks found in the source image (blurred image):")
         for coor_src in blurred_peaks_source:
             print(coor_src)
             list_source_peaks.append(coor_src)
@@ -244,14 +227,21 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
         for source_coor in list_source_peaks:
             for target_coor in list_target_peaks:
                 list_of_coordinate_pairs.append([source_coor, target_coor])
-    
+
         # 3) If we have more coordinates pairs than we'll be using, we'll have
         #    to determine the initial cross correlation of each pair and sort
         #    the pairs based on that
         pairs_with_xcorr = []
         if len(list_of_coordinate_pairs) > max_number_seeds:
             for coor_pair in list_of_coordinate_pairs:
-                xcorr_coor_pair = get_cross_correlation_from_coordinate_pair(source, target, targetvol, maskvol, coor_pair)
+                xcorr_coor_pair = get_cross_correlation_from_coordinate_pair(
+                                    source_img=source, target_img=target,
+                                    mask_img=mask,
+                                    coordinate_pair=coor_pair)
+                #if xcorr_coor_pair > min(pairs_with_xcorr):
+                #  pairs_with_xcorr.pop(0)
+                #  # - pop previous nth_best and insert new coord pair and xcorr into pairs_with_xcorr
+                #TODO: otherwise don't append
                 pairs_with_xcorr.append({'xcorr': xcorr_coor_pair,
                                          'coorpair': coor_pair})
                 print("Xcorr: " + str(xcorr_coor_pair))
@@ -264,7 +254,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                 list_of_coordinate_pairs.append(pairs_with_xcorr[i]['coorpair'])
             print("\n\nNew list of coordinates:")
             print(list_of_coordinate_pairs)
-    
+
     best = { 'xcorr' : 0 }
     for coordinates_src_target in list_of_coordinate_pairs:
         coor_src = coordinates_src_target[0]
@@ -280,7 +270,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                                           use_lsq12_for_alignment=use_lsq12_for_alignment)
                     resampled = resample_volume(init_resampled, target, transform)
                     conc_transform = concat_transforms(init_transform, transform)
-                    xcorr = compute_xcorr(resampled, targetvol, maskvol)
+                    xcorr = compute_xcorr(resampled, target, maskfile=mask)
                     if isnan(xcorr):
                         xcorr = 0
                     if xcorr > best['xcorr']:
@@ -296,7 +286,7 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
                     os.remove(init_transform)
                     os.remove(transform)
                     print("FINISHED: %s %s %s :: %s" % (x,y,z, xcorr))
-    
+
     # resample the best result:
     # TODO this is the same code as the inner loop above -- make a procedure?
     best_init_transform = create_transform(best['coor_trgt'] - best['coor_src'],
@@ -312,17 +302,15 @@ def loop_rotations(stepsize, source, target, mask, simplex, start=50, interval=1
     #final_resampled = resample_volume(source, target, results[-1]["transform"])
     best["resampled"] = final_resampled
     best["transform"] = best_conc_transform
-    targetvol.closeVolume()
     if mask is not None:
         maskvol.closeVolume()
     return best
 
-def dict_extract(adict, akey):
-    return adict[akey]
+def extract_xcorr(adict):
+    return adict["xcorr"]
 
 def sort_results(results, reverse_order=False):
-    sort_key_func = functools.partial(dict_extract, akey="xcorr")
-    results.sort(key=sort_key_func, reverse=reverse_order)
+    results.sort(key=extract_xcorr, reverse=reverse_order)
 
 def downsample(infile, stepsize):
     output = get_tempfile(".mnc")
@@ -363,7 +351,7 @@ def main(args):
                       help="Comma separated list of optimization weights of translations in "
                            "x, y, z for minctracc [default = %(default)s]",
                       type=str, default="0.2,0.2,0.2")
-    parser.add_argument("--simplex", dest="simplex", type=float, default=1, 
+    parser.add_argument("--simplex", dest="simplex", type=float, default=1,
                         help="Radius of minctracc simplex volume [default = %(default)s]")
     parser.set_defaults(use_multiple_seeds=True)
     parser.add_argument("--use-multiple-seeds", dest="use_multiple_seeds", action="store_true",
@@ -380,7 +368,7 @@ def main(args):
                         "from the alignment based on only the translation from the "
                         "seed point. [default = %(default)s]")
     parser.set_defaults(use_lsq12_for_alignment=False)
-    
+
     parser.add_argument("--use-lsq12-for-alignment", dest="use_lsq12_for_alignment", action="store_true",
                         help="Instead of aligning the files using rotations and translations only "
                              "use 3 scaling parameters as well. [default = %(default)s]")
@@ -411,7 +399,7 @@ def main(args):
         # downsample the mask only if it is specified
         if options.mask:
             options.mask = downsample(options.mask, options.resamplestepsize)
-    
+
     best = loop_rotations(stepsize=options.registrationstepsize,
                           source=source,
                           target=target,
@@ -423,7 +411,7 @@ def main(args):
                           use_multiple_seeds=options.use_multiple_seeds,
                           max_number_seeds=options.max_number_seeds,
                           use_lsq12_for_alignment=options.use_lsq12_for_alignment)
-    
+
     print(best)
     subprocess.check_call(("cp %s %s" % (best["transform"], output_xfm)).split())
     subprocess.check_call(("cp %s %s" % (best["resampled"], output_mnc)).split())
