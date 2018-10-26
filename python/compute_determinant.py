@@ -91,8 +91,8 @@ if __name__ == "__main__":
         p.wait()
         return p
 
-    if not os.path.isdir(args.temp_folder):
-        os.mkdir(args.temp_folder)
+    if not os.path.isdir(args.temp_dir):
+        os.mkdir(args.temp_dir)
     tempdir = tempfile.mkdtemp(dir=args.temp_dir)
 
     input_dir, input_name, input_ext = explode(args.input_transform)
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
 # Start the linear pipeline
     displacement = os.path.join(tempdir, output_name + "_displacement.mnc")
-    p = run_subprocess(["minc_displacement",
+    p = run_subprocess(["minc_displacement -double",
                         "-clobber" if args.clobber else "",
                         args.input_like,
                         transform,

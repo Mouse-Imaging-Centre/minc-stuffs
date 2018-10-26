@@ -12,6 +12,7 @@
 /* argument parsing defaults */
 static int verbose = FALSE;
 static int clobber = FALSE;
+static int datatype = NC_SHORT;
 
 /* argument table */
 static ArgvInfo argTable[] = {
@@ -21,6 +22,16 @@ static ArgvInfo argTable[] = {
     "print out extra information"},
    {"-clobber", ARGV_CONSTANT, (char *)TRUE, (char *)&clobber,
     "clobber existing files"},
+   {"-byte", ARGV_CONSTANT, (char *) NC_BYTE, (char *) &datatype,
+    "Write out byte data"},
+   {"-short", ARGV_CONSTANT, (char *) NC_SHORT, (char *) &datatype,
+    "Write out short integer data"},
+   {"-int", ARGV_CONSTANT, (char *) NC_INT, (char *) &datatype,
+    "Write out 32-bit integer data"},
+   {"-float", ARGV_CONSTANT, (char *) NC_FLOAT, (char *) &datatype,
+    "Write out single-precision floating-point data"},
+   {"-double", ARGV_CONSTANT, (char *) NC_DOUBLE, (char *) &datatype,
+   "Write out double-precision floating-point data"},
    {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, ""},
    {NULL, ARGV_END, NULL, NULL, NULL}
 };
@@ -103,7 +114,7 @@ int main(int argc, char *argv[]) {
   grid_separation[0] = 1;
   grid_starts[0] = 0;
 
-  new_grid = create_volume(4, dimnames_grid, NC_SHORT, FALSE, 0.0, 0.0);
+  new_grid = create_volume(4, dimnames_grid, datatype, FALSE, 0.0, 0.0);
 
   //set_voxel_to_world_transform(new_grid, voxel_to_world);
   // initialize the new grid volume, otherwise the output will be
