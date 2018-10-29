@@ -1,3 +1,8 @@
+New in Version 0.1.24
+=====================
+* rotational_minctracc.py uses minccmp instead of Pyminc to avoid memory leakage.
+* remove minc-scripts submodule and include vtk_meshconvert.py directly.
+
 New in Version 0.1.23
 =====================
 * Added compute_determinants.py
