@@ -105,7 +105,9 @@ def get_blur_peaks(input_file, blur_kernel, peak_distance):
 
 def compute_xcorr(sourcefile, targetfile, maskfile):
     return float(subprocess.check_output(
-                  ['minccmp', '-xcorr', '-mask', maskfile, sourcefile, targetfile]).split()[1])
+                   ['minccmp', '-xcorr']
+                 + (['-mask', maskfile] if maskfile is not None else [])
+                 + [sourcefile, targetfile]).split()[1])
 
 
 def create_transform(cog_diff, xrot, yrot, zrot, cog_source):
@@ -162,11 +164,13 @@ def get_cross_correlation_from_coordinate_pair(source_img, target_img, mask_img,
     os.remove(transform_from_coordinates)
     return float(xcorr)
 
-def loop_rotations(stepsize, source, target, target_mask, simplex, start=50, interval=10,
+def loop_rotations(*, stepsize, source, target, source_mask, target_mask,
+                   simplex, start=50, interval=10,
                    wtranslations="0.2,0.2,0.2", use_multiple_seeds=True, max_number_seeds=5,
                    use_lsq12_for_alignment=False):
     # load the mask volumes
     target_maskvol = volumeFromFile(target_mask) if target_mask is not None else None
+    source_maskvol = volumeFromFile(source_mask) if source_mask is not None else None
 
     # we've had issues with mask files that after
     # running autocrop on them, only contain "nan"
@@ -175,7 +179,8 @@ def loop_rotations(stepsize, source, target, target_mask, simplex, start=50, int
     # image: unsigned short 1 to 1
     # when that happens, all following calculations
     # fail, so we should quit:
-    if (target_maskvol is not None) and math.isnan(target_maskvol.data.sum()):
+    for maskvol in target_maskvol, source_maskvol:
+      if (maskvol is not None) and math.isnan(maskvol.data.sum()):
         # clean up...
         shutil.rmtree("%s/rot_%s" % (os.environ["TMPDIR"], os.getpid()))
         raise ValueError(
@@ -262,7 +267,9 @@ def loop_rotations(stepsize, source, target, target_mask, simplex, start=50, int
                     # we need to include the centre of the volume as rotation centre = cog1
                     init_transform = create_transform(coor_trgt - coor_src, x, y, z, coor_src)
                     init_resampled = resample_volume(source, target, init_transform)
-                    transform = minctracc(init_resampled, target, target_mask=target_mask, stepsize=stepsize,
+                    transform = minctracc(init_resampled, target,
+                                          source_mask=source_mask, target_mask=target_mask,
+                                          stepsize=stepsize,
                                           wtranslations=wtranslations, simplex=simplex,
                                           use_lsq12_for_alignment=use_lsq12_for_alignment)
                     resampled = resample_volume(init_resampled, target, transform)
@@ -290,9 +297,10 @@ def loop_rotations(stepsize, source, target, target_mask, simplex, start=50, int
                                            best['xrot'], best['yrot'], best['zrot'],
                                            best['coor_src'])
     best_init_resampled = resample_volume(source, target, best_init_transform)
-    best_transform = minctracc(best_init_resampled, target, target_mask, stepsize=stepsize,
-                                          wtranslations=wtranslations, simplex=simplex,
-                                          use_lsq12_for_alignment=use_lsq12_for_alignment)
+    best_transform = minctracc(best_init_resampled, target=target,
+                               source_mask=source_mask, target_mask=target_mask, stepsize=stepsize,
+                               wtranslations=wtranslations, simplex=simplex,
+                               use_lsq12_for_alignment=use_lsq12_for_alignment)
     best_resampled = resample_volume(best_init_resampled, target, best_transform)
     best_conc_transform = concat_transforms(best_init_transform, best_transform)
     final_resampled = resample_volume(source, target, best_conc_transform)
@@ -301,6 +309,8 @@ def loop_rotations(stepsize, source, target, target_mask, simplex, start=50, int
     best["transform"] = best_conc_transform
     if target_mask is not None:
         target_maskvol.closeVolume()
+    if source_mask is not None:
+        source_maskvol.closeVolume()
     return best
 
 def extract_xcorr(adict):
@@ -329,6 +339,9 @@ def main(args):
     parser = ArgumentParser()
     parser.add_argument("-m", "--mask", "--target-mask", dest="target_mask",
                         help="mask to use for target file, hence for computing xcorr",
+                        type=str)
+    parser.add_argument("--source-mask", dest="source_mask",
+                        help="mask to use for source file",
                         type=str)
     parser.add_argument("-s", "--stepsizeresample", dest="resamplestepsize",
                         help="resampled volumes to this stepsize [default = %(default)s]",
@@ -397,10 +410,13 @@ def main(args):
         # downsample the mask only if it is specified
         if options.target_mask:
             options.target_mask = downsample(options.target_mask, options.resamplestepsize)
+        if options.source_mask:
+            options.source_mask = downsample(options.source_mask, options.resamplestepsize)
 
     best = loop_rotations(stepsize=options.registrationstepsize,
                           source=source,
                           target=target,
+                          source_mask=options.source_mask,
                           target_mask=options.target_mask,
                           start=options.range,
                           interval=options.interval,
