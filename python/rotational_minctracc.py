@@ -126,12 +126,13 @@ def resample_volume(source, target, transform):
                           % (transform, target, source, tmp_resampled)).split())
     return tmp_resampled
 
-def minctracc(source, target, target_mask, stepsize, wtranslations, simplex, use_lsq12_for_alignment):
+def minctracc(source, target, *, source_mask, target_mask, stepsize, wtranslations, simplex, use_lsq12_for_alignment):
     wtrans_decomp = array(wtranslations.split(',')).astype("float")
     tmp_transform = get_tempfile('.xfm')
     cmd = (f"minctracc -identity -xcorr -simplex {simplex} -step {stepsize} {stepsize} {stepsize} -w_translations {wtrans_decomp[0]} {wtrans_decomp[1]} {wtrans_decomp[2]}" +
            (" -lsq12 " if use_lsq12_for_alignment else " -lsq6 ") +
            (f" -model_mask {target_mask} " if target_mask else "") +
+           (f" -source_mask {source_mask} " if source_mask else "") +
            #% (simplex, stepsize, stepsize, stepsize, source, target, tmp_transform,
            #wtrans_decomp[0], wtrans_decomp[1], wtrans_decomp[2]))
            f" {source} {target} {tmp_transform}")
