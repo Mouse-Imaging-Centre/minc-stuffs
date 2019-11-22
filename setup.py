@@ -4,7 +4,7 @@ from setuptools import setup
 
 
 setup(name="python-stuffs",
-      version='0.1.23',
+      version='0.1.24',
       install_requires=['numpy', 'scipy', 'pyminc'],
       scripts=[f"python/{s}" for s in
               ("TFCE",
